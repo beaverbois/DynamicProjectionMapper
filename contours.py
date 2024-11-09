@@ -1,7 +1,6 @@
 import cv2
 import numpy
-from screeninfo import get_monitors
-from consts import Consts
+import pyautogui
 
 class ContourDetector():
     def getMask(img):
@@ -57,20 +56,20 @@ class ContourDetector():
         contours, hierarchy = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
         # Loop through each contour
-        # maxSize = 0
-        # maxContour = None
-        # numContours = 0
-        # for contour in contours:
-        #     # Get the bounding box of each contour
-        #     x, y, w, h = cv2.boundingRect(contour)
+        maxSize = 0
+        maxContour = None
+        numContours = 0
+        for contour in contours:
+            # Get the bounding box of each contour
+            x, y, w, h = cv2.boundingRect(contour)
 
-        #     if w*h > maxSize and w*h < 1600 * 480:
-        #         maxSize = w*h
-        #         maxContour = contour
+            if w*h > maxSize and w*h < 1600 * 480:
+                maxSize = w*h
+                maxContour = contour
 
-        #     numContours += 1
+            numContours += 1
 
-        maxContour = max(contours, key=cv2.contourArea)
+        # maxContour = max(contours, key=cv2.contourArea)
         
         #     # # cv2.floodFill(contour_image, None, (x - w/2, y - h/2), (255, 0, 0))
 
@@ -88,48 +87,49 @@ class ContourDetector():
 
         # x, y, w, h = cv2.boundingRect(maxContour)
         
-        # # Draw image
-        # cv2.drawContours(image, [maxContour], -1, (255, 255, 255), cv2.FILLED)
-        # cv2.imshow("Contour", image)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
+        # Draw image
+        cv2.drawContours(img, [maxContour], -1, (255, 255, 255), cv2.FILLED)
+        cv2.imshow("Contour", img)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
         # cv2.drawContours(contour_image, [maxContour], -1, (255, 255, 255), cv2.FILLED)
 
-        # return contour_image
-        return maxContour
+        return contour_image
+        # return maxContour
 
     def scaleImage(contour, homography):
 
-        # Create an inverse mask (for the rest of the image)
-        inverse_mask = cv2.bitwise_not(contour)
-
         # Koala
         projection = cv2.imread("images/pattern3.png")
+        
+        # mask = numpy.zeros_like(projection, dtype=numpy.uint8)  # Create a blank mask
+        # cv2.fillPoly(mask, [contour], (255))  # Fill the largest contour in the mask
 
         # # Resize the target image to match the source image size (if necessary)
         # target_resized = cv2.resize(projection, (image.shape[1], image.shape[0]))
 
         # Use the inverse homography matrix to project the mask onto the projection image
         # Convert contour to homogeneous coordinates (x, y, 1)
-        contour_homogeneous = numpy.hstack([contour.reshape(-1, 2), numpy.ones((contour.shape[0], 1))])
+        # contour_homogeneous = numpy.hstack([contour.reshape(-1, 2), numpy.ones((contour.shape[0], 1))])
 
-        # Apply the inverse homography to each point in the contour
-        contour_transformed = []
+        # # Apply the inverse homography to each point in the contour
+        # contour_transformed = []
 
-        for point in contour_homogeneous:
-            # Apply inverse homography
-            transformed_point = numpy.dot(homography, point.T)
-            transformed_point /= transformed_point[2]  # Normalize to make it homogeneous again
-            contour_transformed.append(transformed_point[:2])  # Keep only (x, y)
+        # for point in contour_homogeneous:
+        #     # Apply inverse homography
+        #     transformed_point = numpy.dot(numpy.linalg.inv(homography), point.T)
+        #     transformed_point /= transformed_point[2]  # Normalize to make it homogeneous again
+        #     contour_transformed.append(transformed_point[:2])  # Keep only (x, y)
 
-        # Convert the transformed points back to an array
-        contour_transformed = numpy.array(contour_transformed, dtype=numpy.int32)
+        # # Convert the transformed points back to an array
+        # contour_transformed = numpy.array(contour_transformed, dtype=numpy.int32)
 
-        # Create a binary mask where the largest contour is filled in
-        mask = numpy.zeros_like(image, dtype=numpy.uint8)  # Create a blank mask
-        cv2.fillPoly(mask, [contour_transformed], (255))  # Fill the largest contour in the mask
+        # # Create a binary mask where the largest contour is filled in
+        # mask = numpy.zeros_like(image, dtype=numpy.uint8)  # Create a blank mask
+        # cv2.fillPoly(mask, [contour_transformed], (255))  # Fill the largest contour in the mask
 
+        mask_transform = None # Set this variable
 
         # # Create a blank canvas for the output image
         # output_image = numpy.zeros((300, 300, 3), dtype=numpy.uint8)
@@ -141,7 +141,7 @@ class ContourDetector():
         # cv2.polylines(output_image, [contour_transformed], isClosed=True, color=(0, 255, 0), thickness=2)
 
         # Extract the region inside the contour from the source image using the mask
-        contour_region = cv2.bitwise_and(projection, projection, mask=contour_transformed)
+        contour_region = cv2.bitwise_and(projection, projection, mask=mask_transform)
 
         # # Use the inverse mask to keep the background of the target image
         # background = cv2.bitwise_and(contour_region, contour_region, mask=inverse_mask)
@@ -178,10 +178,10 @@ class ContourDetector():
 
         # Wait for a key press and close the windows
 
-    def test(self):
-        image = cv2.imread("images/test.jpg", cv2.IMREAD_UNCHANGED)
-        screen = get_monitors()[Consts.DISPLAY_INDEX]
+    def test():
 
+        image = cv2.imread("images/test.jpg", cv2.IMREAD_UNCHANGED)
+        screen = pyautogui.size()
         # screenRatio = float(screen.width) / float(screen.height)
         # dim = image.shape
         # ratio = float(dim[0]) / float(dim[1])
@@ -190,4 +190,4 @@ class ContourDetector():
 
         image = cv2.resize(image, (screen.width, screen.height))
 
-        self.getMask(image)
+        ContourDetector.getMask(image)

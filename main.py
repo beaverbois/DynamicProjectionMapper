@@ -97,8 +97,9 @@ def calibrate(imgIndex: int):
         cv2.imwrite(Consts.HOMOGRAPHY_IMAGE_PATH, homographyImg)
 
         # identify countours
-        print(pts)
-        contour = ContourDetector(frame, pts)
+        print(dst)
+        print(np.int32(dst))
+        contour = ContourDetector(frame, np.int32(dst))
        
         # contour.scaleImage(contour, homography)
         

@@ -12,18 +12,21 @@ class ContourDetector():
 
     def __init__(self, img, dst):
         # Get values from dst
-        dst = numpy.array(dst)
 
-        dstMinX = dst[0][0]
-        dstMinY = dst[0][1]
-        dstMaxX = dst[0][0]
-        dstMaxY = dst[0][1]
+        print(dst)
+        # dst = numpy.array(dst)
+
+        dstMinX = dst[0][0][0]
+        dstMinY = dst[0][0][1]
+        dstMaxX = dst[0][0][0]
+        dstMaxY = dst[0][0][1]
+
 
         for i in range(len(dst)):
-            dstMinX = min(dstMinX, dst[i][0])
-            dstMaxX = max(dstMaxX, dst[i][0])
-            dstMinY = min(dstMinY, dst[i][1])
-            dstMaxY = max(dstMaxY, dst[i][1])
+            dstMinX = min(dstMinX, dst[i][0][0])
+            dstMaxX = max(dstMaxX, dst[i][0][0])
+            dstMinY = min(dstMinY, dst[i][0][1])
+            dstMaxY = max(dstMaxY, dst[i][0][1])
 
         xDist = dstMaxX - dstMinX
         yDist = dstMaxY - dstMinY
@@ -62,7 +65,7 @@ class ContourDetector():
             perimeter = cv2.arcLength(contour, True)
         
             # Set epsilon to 2% of the perimeter (you can adjust this for more/less simplification)
-            epsilon = 0.05 * perimeter  # This controls the approximation accuracy
+            epsilon = 0.04 * perimeter  # This controls the approximation accuracy
         
             # Approximate the contour
             approx_polygon = cv2.approxPolyDP(contour, epsilon, True)

@@ -4,27 +4,50 @@ from consts import Consts
 from screeninfo import get_monitors
 
 class ContourDetector():
+    blurXMod = 0.005
+    blurYMod = 0.005
+    
+    dilateXMod = 0.02
+    dilateYMod = 0.01
+
     def __init__(self, img, dst):
+        # Get values from dst
+        dst = numpy.array(dst)
+
+        dstMinX = dst[0][0]
+        dstMinY = dst[0][1]
+        dstMaxX = dst[0][0]
+        dstMaxY = dst[0][1]
+
+        for i in range(len(dst)):
+            dstMinX = min(dstMinX, dst[i][0])
+            dstMaxX = max(dstMaxX, dst[i][0])
+            dstMinY = min(dstMinY, dst[i][1])
+            dstMaxY = max(dstMaxY, dst[i][1])
+
+        xDist = dstMaxX - dstMinX
+        yDist = dstMaxY - dstMinY
+
         # Convert the image to grayscale
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         # Apply GaussianBlur to reduce noise and improve edge detection
-        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+        blurred = cv2.GaussianBlur(gray, (3, 3), 0)
 
         # Perform Canny edge detection
         edges = cv2.Canny(blurred, threshold1=100, threshold2=200, apertureSize=3)
 
         # Dilate and erode
-        edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, (5, 5), iterations=2)
+        edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, (9, 9), iterations=9)
         
         edges = cv2.drawContours(edges, [dst], -1, (255, 255, 255), 2)
 
         # Show the original and edge-detected images
         # cv2.imshow('Original Image', img)
-        # cv2.imshow('Canny Edge Detection', edges)
+        cv2.imshow('Canny Edge Detection', edges)
 
         # Find contours from the edges image
-        contours, hierarchy = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        contours, hierarchy = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         # Create a copy of the original image to draw the contours on
         contour_image = numpy.zeros_like(edges, dtype=numpy.uint8)
@@ -39,16 +62,16 @@ class ContourDetector():
             perimeter = cv2.arcLength(contour, True)
         
             # Set epsilon to 2% of the perimeter (you can adjust this for more/less simplification)
-            epsilon = 0.03 * perimeter  # This controls the approximation accuracy
+            epsilon = 0.05 * perimeter  # This controls the approximation accuracy
         
             # Approximate the contour
             approx_polygon = cv2.approxPolyDP(contour, epsilon, True)
 
             edges = cv2.drawContours(edges, [approx_polygon], -1, (255, 255, 255), 2)
         
-        edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, (5, 5), iterations=2)
+        edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, (9, 9), iterations=9)
         
-        edges = cv2.drawContours(edges, [dst], (255, 255, 255), 2)
+        edges = cv2.drawContours(edges, [dst], -1, (255, 255, 255), 2)
 
         # cv2.drawContours(contour_image, contours, -1, (255, 255, 255), 2)
         cv2.imshow("Round 1", edges)
@@ -63,11 +86,15 @@ class ContourDetector():
             # Get the bounding box of each contour
             x, y, w, h = cv2.boundingRect(contour)
 
-            if w*h > maxSize and w*h < 1600 * 480:
+            if w*h > maxSize and w*h < xDist * yDist:
                 maxSize = w*h
                 maxContour = contour
 
             numContours += 1
+
+            print(w*h)
+
+        print(numContours)
 
         # maxContour = max(contours, key=cv2.contourArea)
         
@@ -188,4 +215,8 @@ class ContourDetector():
 
         image = cv2.resize(image, (screen.width, screen.height))
 
-        ContourDetector.getMask(image)
+        print(image.shape)
+
+        ContourDetector(image, [(0, 0), (0, 900), (1600, 900), (1600, 0)])
+
+ContourDetector.test()

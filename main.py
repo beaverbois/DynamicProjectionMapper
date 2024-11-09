@@ -104,5 +104,9 @@ def calibrate(refPattern):
 	finally:
 		cv2.destroyAllWindows()
 
-refPattern = cv2.imread("pattern.png", cv2.IMREAD_GRAYSCALE)
-calibrate(refPattern)
+def main():
+    refPattern = cv2.imread("pattern.png", cv2.IMREAD_GRAYSCALE)
+    calibrate(refPattern)
+	
+if __name__ == "main":
+    main()

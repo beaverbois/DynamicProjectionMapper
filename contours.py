@@ -122,11 +122,12 @@ class ContourDetector():
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
-        # cv2.drawContours(contour_image, [maxContour], -1, (255, 255, 255), cv2.FILLED)
+        cv2.drawContours(contour_image, [maxContour], -1, (255, 255, 255), cv2.FILLED)
 
-        self.mask = maxContour
+        contour_image = cv2.cvtColor(contour_image, cv2.COLOR_HSV2BGR)
+        self.mask = cv2.cvtColor(contour_image, cv2.COLOR_BGR2GRAY)
 
-    def scaleImage(self, contour, homography):
+    def scaleImage(self, homography):
         # Koala
         projection = cv2.imread("images/pattern3.png")
         
@@ -134,7 +135,7 @@ class ContourDetector():
         # cv2.fillPoly(mask, [contour], (255))  # Fill the largest contour in the mask
 
         # # Resize the target image to match the source image size (if necessary)
-        # target_resized = cv2.resize(projection, (image.shape[1], image.shape[0]))
+        # target_resized = cv2.resize(projection, (projection.shape[0], projection.shape[1]))
 
         # Use the inverse homography matrix to project the mask onto the projection image
         # Convert contour to homogeneous coordinates (x, y, 1)
@@ -165,17 +166,18 @@ class ContourDetector():
         # # Draw the transformed contour in green
         # cv2.polylines(output_image, [contour_transformed], isClosed=True, color=(0, 255, 0), thickness=2)
 
+        mask_transform = cv2.warpPerspective(self.mask, numpy.linalg.inv(homography), (projection.shape[0], projection.shape[1])) # Set this variable
+
         # Extract the region inside the contour from the source image using the mask
-        contour_region = cv2.bitwise_and(projection, projection, mask=self.mask)
-        
-        out = cv2.Mat()
-        mask_transform = cv2.warpPerspective(contour_region, out, homography, projection.shape[:2]) # Set this variable
+        contour_region = cv2.bitwise_and(projection, projection, mask=mask_transform)
 
         # # Use the inverse mask to keep the background of the target image
         # background = cv2.bitwise_and(contour_region, contour_region, mask=inverse_mask)
 
         # # Overlay the contour region onto the target image
         # result = cv2.add(background, contour_region)
+
+        cv2.imshow("Output", contour_region)
 
         cv2.imshow("Mask", mask_transform)
 

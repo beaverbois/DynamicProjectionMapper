@@ -1,3 +1,4 @@
 .DS_Store
 calibration
 __pycache__
+.venv

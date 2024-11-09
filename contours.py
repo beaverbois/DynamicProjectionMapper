@@ -38,10 +38,10 @@ class ContourDetector():
         blurred = cv2.GaussianBlur(gray, (3, 3), 0)
 
         # Perform Canny edge detection
-        edges = cv2.Canny(blurred, threshold1=100, threshold2=200, apertureSize=3)
+        edges = cv2.Canny(blurred, threshold1=50, threshold2=200, apertureSize=3)
 
         # Dilate and erode
-        edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, (9, 9), iterations=9)
+        edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, (9, 9), iterations=19)
         
         edges = cv2.drawContours(edges, [dst], -1, (255, 255, 255), 2)
 
@@ -59,20 +59,23 @@ class ContourDetector():
 
         for contour in contours:
             # Get the bounding box of each contour
-            # x, y, w, h = cv2.boundingRect(contour)
+            x, y, w, h = cv2.boundingRect(contour)
+
+            if w * h > int((xDist * yDist) / 1.5):
+                continue
 
             # cv2.rectangle(edges, (x, y), (x + w, y + h), (255, 255, 255), 2)
             perimeter = cv2.arcLength(contour, True)
         
             # Set epsilon to 2% of the perimeter (you can adjust this for more/less simplification)
-            epsilon = 0.04 * perimeter  # This controls the approximation accuracy
+            epsilon = 0.05 * perimeter  # This controls the approximation accuracy
         
             # Approximate the contour
             approx_polygon = cv2.approxPolyDP(contour, epsilon, True)
 
             edges = cv2.drawContours(edges, [approx_polygon], -1, (255, 255, 255), 2)
         
-        edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, (9, 9), iterations=9)
+        edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, (9, 9), iterations=19)
         
         edges = cv2.drawContours(edges, [dst], -1, (255, 255, 255), 2)
 

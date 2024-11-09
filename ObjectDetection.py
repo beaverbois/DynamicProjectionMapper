@@ -56,20 +56,20 @@ class ContourDetector():
         contours, hierarchy = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
         # Loop through each contour
-        # maxSize = 0
-        # maxContour = None
-        # numContours = 0
-        # for contour in contours:
-        #     # Get the bounding box of each contour
-        #     x, y, w, h = cv2.boundingRect(contour)
+        maxSize = 0
+        maxContour = None
+        numContours = 0
+        for contour in contours:
+            # Get the bounding box of each contour
+            x, y, w, h = cv2.boundingRect(contour)
 
-        #     if w*h > maxSize and w*h < 1600 * 480:
-        #         maxSize = w*h
-        #         maxContour = contour
+            if w*h > maxSize and w*h < 1600 * 480:
+                maxSize = w*h
+                maxContour = contour
 
-        #     numContours += 1
+            numContours += 1
 
-        maxContour = max(contours, key=cv2.contourArea)
+        # maxContour = max(contours, key=cv2.contourArea)
         
         #     # # cv2.floodFill(contour_image, None, (x - w/2, y - h/2), (255, 0, 0))
 
@@ -87,13 +87,13 @@ class ContourDetector():
 
         # x, y, w, h = cv2.boundingRect(maxContour)
         
-        # # Draw image
-        # cv2.drawContours(image, [maxContour], -1, (255, 255, 255), cv2.FILLED)
-        # cv2.imshow("Contour", image)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
+        # Draw image
+        cv2.drawContours(img, [maxContour], -1, (255, 255, 255), cv2.FILLED)
+        cv2.imshow("Contour", img)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
-        cv2.drawContours(contour_image, [maxContour], -1, (255, 255, 255), cv2.FILLED)
+        # cv2.drawContours(contour_image, [maxContour], -1, (255, 255, 255), cv2.FILLED)
 
         return contour_image
         # return maxContour
@@ -178,7 +178,7 @@ class ContourDetector():
 
         # Wait for a key press and close the windows
 
-    def test(self):
+    def test():
 
         image = cv2.imread("images/test.jpg", cv2.IMREAD_UNCHANGED)
         screen = pyautogui.size()
@@ -190,4 +190,4 @@ class ContourDetector():
 
         image = cv2.resize(image, (screen.width, screen.height))
 
-        self.getMask(image)
+        ContourDetector.getMask(image)

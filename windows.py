@@ -2,6 +2,30 @@ from PyQt5 import QtWidgets, QtGui, QtCore
 from consts import Consts
 import cv2
 
+class ProjectorStream(QtWidgets.QMainWindow):
+    def __init__(self, image, monitorIndex = Consts.PROJECTOR_INDEX):
+        super().__init__()
+       # label to hold the image
+        self.label = QtWidgets.QLabel(self)
+        self.setCentralWidget(self.label)
+        
+        # convert OpenCV image to QImage for PyQt
+        height, width, channel = image.shape
+        bytesPerLine = channel * width
+        q_image = QtGui.QImage(image.data, width, height, bytesPerLine, QtGui.QImage.Format_RGB888)
+        
+        # display QImage in the label
+        pixmap = QtGui.QPixmap.fromImage(q_image)
+        self.label.setPixmap(pixmap)
+        
+        # get screen geometry
+        screen = QtWidgets.QApplication.screens()[monitorIndex]
+        geometry = screen.geometry()
+        
+        # move and resize the window to fit
+        self.setGeometry(geometry)
+        self.showFullScreen()
+
 class ProjectorWindow(QtWidgets.QMainWindow):
     def captureImage(self):
         # initializing web cam  

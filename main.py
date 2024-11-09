@@ -5,7 +5,10 @@ from contours import ContourDetector
 from screeninfo import get_monitors
 from consts import Consts
 from PyQt5 import QtWidgets
-from windows import ProjectorWindow, UserWindow
+from windows import ProjectorStream, ProjectorWindow, UserWindow
+
+import time
+from progressbar import progressbar
 
 refImages = ['images/pattern1.png', 'images/pattern2.png', 'images/pattern3.png']
 
@@ -96,17 +99,35 @@ def calibrate(imgIndex: int):
         # write homography image
         cv2.imwrite(Consts.HOMOGRAPHY_IMAGE_PATH, homographyImg)
 
-        # identify countours
-        ContourDetector(frame, np.int32(dst))
-       
-        ContourDetector.scaleImage(homography)
+        # # ---- BENCHMARK ----
+        # t0 = time.time()
+        # for i in progressbar(range(1000)):
+        #     cd = ContourDetector(frame, np.int32(dst))
+        #     cd.scaleImage(homography)
+        # t1 = time.time()
+
+        # print(f"time: {t1-t0}s | fps: {1000/(t1-t0)}")
+        # # ---- BENCHMARK ----
         
+        # identify countours
+        cd = ContourDetector(frame, np.int32(dst))
+       
+        # cd.scaleImage(homography)
+
+
         # app = QtWidgets.QApplication(sys.argv)
-        window = UserWindow(homographyImg)
+        window = ProjectorStream(cd.scaleImage(homography))
         window.show()
 
         # run Qt, exits after picture taken
         app.exec_()
+        
+        # # app = QtWidgets.QApplication(sys.argv)
+        # window = UserWindow(homographyImg)
+        # window.show()
+
+        # # run Qt, exits after picture taken
+        # app.exec_()
 
     except Exception as e:
         print(e)

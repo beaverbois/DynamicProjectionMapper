@@ -3,6 +3,10 @@ import numpy
 from consts import Consts
 from screeninfo import get_monitors
 
+from windows import ProjectorWindow, UserWindow
+from PyQt5 import QtWidgets
+import sys
+
 class ContourDetector():
     blurXMod = 0.005
     blurYMod = 0.005
@@ -13,7 +17,7 @@ class ContourDetector():
     def __init__(self, img, dst):
         # Get values from dst
 
-        print(dst)
+        # print(dst)
         # dst = numpy.array(dst)
 
         dstMinX = dst[0][0][0]
@@ -43,11 +47,11 @@ class ContourDetector():
         # Dilate and erode
         edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, (9, 9), iterations=19)
         
-        edges = cv2.drawContours(edges, [dst], -1, (255, 255, 255), 2)
+        edges = cv2.drawContours(edges, [dst], -1, (255, 255, 255), 10)
 
         # Show the original and edge-detected images
         # cv2.imshow('Original Image', img)
-        cv2.imshow('Canny Edge Detection', edges)
+        # cv2.imshow('Canny Edge Detection', edges)
 
         # Find contours from the edges image
         contours, hierarchy = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -73,14 +77,14 @@ class ContourDetector():
             # Approximate the contour
             approx_polygon = cv2.approxPolyDP(contour, epsilon, True)
 
-            edges = cv2.drawContours(edges, [approx_polygon], -1, (255, 255, 255), 2)
+            edges = cv2.drawContours(edges, [approx_polygon], -1, (255, 255, 255), 10)
         
         edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, (9, 9), iterations=19)
         
-        edges = cv2.drawContours(edges, [dst], -1, (255, 255, 255), 2)
+        edges = cv2.drawContours(edges, [dst], -1, (255, 255, 255), 10)
 
         # cv2.drawContours(contour_image, contours, -1, (255, 255, 255), 2)
-        cv2.imshow("Round 1", edges)
+        # cv2.imshow("Round 1", edges)
 
         contours, hierarchy = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -116,20 +120,20 @@ class ContourDetector():
 
         # x, y, w, h = cv2.boundingRect(maxContour)
         
-        # Draw image
-        cv2.drawContours(img, [maxContour], -1, (255, 255, 255), cv2.FILLED)
-        cv2.imshow("Contour", img)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        # # Draw image
+        # cv2.drawContours(img, [maxContour], -1, (255, 255, 255), cv2.FILLED)
+        # cv2.imshow("Contour", img)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
 
         cv2.drawContours(contour_image, [maxContour], -1, (255, 255, 255), cv2.FILLED)
 
-        contour_image = cv2.cvtColor(contour_image, cv2.COLOR_HSV2BGR)
-        self.mask = cv2.cvtColor(contour_image, cv2.COLOR_BGR2GRAY)
+        # self.mask = cv2.cvtColor(contour_image, cv2.COLOR_BGR2GRAY)
+        self.mask = contour_image
 
     def scaleImage(self, homography):
         # Koala
-        projection = cv2.imread("images/pattern3.png")
+        projection = cv2.imread("images/pattern1.png")
         
         # mask = numpy.zeros_like(projection, dtype=numpy.uint8)  # Create a blank mask
         # cv2.fillPoly(mask, [contour], (255))  # Fill the largest contour in the mask
@@ -166,7 +170,7 @@ class ContourDetector():
         # # Draw the transformed contour in green
         # cv2.polylines(output_image, [contour_transformed], isClosed=True, color=(0, 255, 0), thickness=2)
 
-        mask_transform = cv2.warpPerspective(self.mask, numpy.linalg.inv(homography), (projection.shape[0], projection.shape[1])) # Set this variable
+        mask_transform = cv2.warpPerspective(self.mask, numpy.linalg.inv(homography), (projection.shape[1], projection.shape[0])) # Set this variable
 
         # Extract the region inside the contour from the source image using the mask
         contour_region = cv2.bitwise_and(projection, projection, mask=mask_transform)
@@ -177,16 +181,17 @@ class ContourDetector():
         # # Overlay the contour region onto the target image
         # result = cv2.add(background, contour_region)
 
-        cv2.imshow("Output", contour_region)
+        # cv2.imshow("Output", contour_region)
+        return contour_region
 
-        cv2.imshow("Mask", mask_transform)
+        # # cv2.imshow("Mask", mask_transform)
 
-        # cv2.imshow("Image with Contours", contour_image)
-        # # cv2.imshow("Image Flooded", flooded_image)
+        # # cv2.imshow("Image with Contours", contour_image)
+        # # # cv2.imshow("Image Flooded", flooded_image)
 
-        # Wait for a key press and close the windows
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        # # Wait for a key press and close the windows
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
 
         # Find connected components (regions) in the closed edge image
         # num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(contour_image)

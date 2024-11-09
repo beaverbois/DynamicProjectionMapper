@@ -2,12 +2,15 @@ import cv2
 import numpy as np 
 from screeninfo import get_monitors
 
-# Get monitor information and select the projector
 monitors = get_monitors()
 projector = monitors[1]
+refImages = {"images/pattern1.png", "images/pattern2.png", "images/pattern3.png"}
 
-def calibrate(refPattern):
+def calibrate(imgIndex):
 	try:
+		# Open image
+		refImg = cv2.imread(refImages[imgIndex], cv2.IMREAD_COLOR)
+		
 		# Create a window and move it to the projector screen
 		cv2.namedWindow("ProjectorWindow", cv2.WINDOW_FULLSCREEN)
 		cv2.moveWindow("ProjectorWindow", projector.x, 0)
@@ -16,7 +19,7 @@ def calibrate(refPattern):
 		cv2.setWindowProperty("ProjectorWindow", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
 		# Display the image on the projector screen
-		cv2.imshow("ProjectorWindow", refPattern)
+		cv2.imshow("ProjectorWindow", refImg)
 
 		# Keep the window open until a key is pressed
 		cv2.waitKey(0)
@@ -28,7 +31,7 @@ def calibrate(refPattern):
 		sift = cv2.SIFT_create() 
 
 		# find the keypoints and descriptors with SIFT 
-		kp_image, desc_image = sift.detectAndCompute(refPattern, None) 
+		kp_image, desc_image = sift.detectAndCompute(refImg, None) 
 
 		# initializing the dictionary 
 		index_params = dict(algorithm = 0, trees = 5) 
@@ -98,15 +101,13 @@ def calibrate(refPattern):
 	except Exception as e:
 		print(e)
 		cv2.destroyAllWindows()
-		backupPattern = cv2.imread("pattern2.png", cv2.IMREAD_GRAYSCALE)
-		calibrate(backupPattern)
+		calibrate(refImages[(imgIndex + 1) % len(refImages)]) # Try the next reference image in a circular array
 
-	finally:
-		cv2.destroyAllWindows()
+	# finally:
+	# 	cv2.destroyAllWindows()
 
 def main():
-    refPattern = cv2.imread("pattern.png", cv2.IMREAD_GRAYSCALE)
-    calibrate(refPattern)
+    calibrate(0)
 	
 if __name__ == "main":
     main()

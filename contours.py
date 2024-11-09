@@ -45,7 +45,7 @@ class ContourDetector():
         edges = cv2.Canny(blurred, threshold1=50, threshold2=200, apertureSize=3)
 
         # Dilate and erode
-        edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, (9, 9), iterations=19)
+        edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, (9, 9), iterations=9)
         
         edges = cv2.drawContours(edges, [dst], -1, (255, 255, 255), 10)
 
@@ -68,7 +68,7 @@ class ContourDetector():
             if w * h > int((xDist * yDist) / 2):
                 continue
 
-            pts = contour.reshape((-1, 1, 2))
+            # pts = contour.reshape((-1, 1, 2))
 
             # cv2.rectangle(edges, (x, y), (x + w, y + h), (255, 255, 255), 2)
             perimeter = cv2.arcLength(contour, True)
@@ -79,8 +79,8 @@ class ContourDetector():
             # Approximate the contour
             approx_polygon = cv2.approxPolyDP(contour, epsilon, True)
 
-            # edges = cv2.drawContours(edges, [approx_polygon], -1, (255, 255, 255), 10)
-            edges = cv2.polylines(edges, [pts], True, (255, 255, 255), 10)
+            edges = cv2.drawContours(edges, [approx_polygon], -1, (255, 255, 255), 10)
+            # edges = cv2.polylines(edges, [pts], True, (255, 255, 255), 10)
         
         edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, (9, 9), iterations=19)
         
@@ -88,6 +88,8 @@ class ContourDetector():
 
         # cv2.drawContours(contour_image, contours, -1, (255, 255, 255), 2)
         # cv2.imshow("Round 1", edges)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
 
         contours, hierarchy = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 

@@ -96,7 +96,7 @@ class ContourDetector():
         # cv2.drawContours(contour_image, [maxContour], -1, (255, 255, 255), cv2.FILLED)
 
         # return contour_image
-        return contour
+        return maxContour
 
     def scaleImage(contour, homography):
 

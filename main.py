@@ -4,9 +4,9 @@ from screeninfo import get_monitors
 
 monitors = get_monitors()
 projector = monitors[1]
-refImages = {"images/pattern1.png", "images/pattern2.png", "images/pattern3.png"}
+refImages = ["images/pattern1.png", "images/pattern2.png", "images/pattern3.png"]
 
-def calibrate(imgIndex):
+def calibrate(imgIndex: int):
 	try:
 		# Open image
 		refImg = cv2.imread(refImages[imgIndex], cv2.IMREAD_COLOR)
@@ -78,7 +78,7 @@ def calibrate(imgIndex):
 		matches_mask = mask.ravel().tolist() 
 
 		# initializing height and width of the image 
-		h, w = refPattern.shape[:2]
+		h, w = refImg.shape[:2]
 
 		# saving all points in pts 
 		pts = np.float32([[0, 0], [0, h], [w, h], [w, 0]]).reshape(-1, 1, 2) 
@@ -101,7 +101,7 @@ def calibrate(imgIndex):
 	except Exception as e:
 		print(e)
 		cv2.destroyAllWindows()
-		calibrate(refImages[(imgIndex + 1) % len(refImages)]) # Try the next reference image in a circular array
+		calibrate((imgIndex + 1) % len(refImages)) # Try the next reference image in a circular array
 
 	# finally:
 	# 	cv2.destroyAllWindows()
@@ -109,5 +109,5 @@ def calibrate(imgIndex):
 def main():
     calibrate(0)
 	
-if __name__ == "main":
+if __name__ == "__main__":
     main()

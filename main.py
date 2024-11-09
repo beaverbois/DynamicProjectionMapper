@@ -97,7 +97,9 @@ def calibrate(imgIndex: int):
         cv2.imwrite(Consts.HOMOGRAPHY_IMAGE_PATH, homographyImg)
 
         # identify countours
-        # contour = ContourDetector(frame, dst)
+        print(pts)
+        contour = ContourDetector(frame, pts)
+       
         # contour.scaleImage(contour, homography)
         
         # app = QtWidgets.QApplication(sys.argv)

@@ -92,10 +92,6 @@ class ContourDetector():
 
             numContours += 1
 
-            print(w*h)
-
-        print(numContours)
-
         # maxContour = max(contours, key=cv2.contourArea)
         
         #     # # cv2.floodFill(contour_image, None, (x - w/2, y - h/2), (255, 0, 0))
@@ -218,5 +214,3 @@ class ContourDetector():
         print(image.shape)
 
         ContourDetector(image, [(0, 0), (0, 900), (1600, 900), (1600, 0)])
-
-ContourDetector.test()

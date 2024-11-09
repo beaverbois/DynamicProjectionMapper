@@ -7,6 +7,7 @@ from PyQt5 import QtWidgets, QtGui, QtCore
 
 monitors = get_monitors()
 user = monitors[0]
+assert len(monitors) > 1
 projectorIndex = 1
 refImages = ['images/pattern1.png', 'images/pattern2.png', 'images/pattern3.png']
 

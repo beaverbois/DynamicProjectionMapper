@@ -1,113 +1,161 @@
 import cv2 
-import numpy as np 
+import numpy as np
+import sys
+import time
 from screeninfo import get_monitors
+from PyQt5 import QtWidgets, QtGui, QtCore
 
 monitors = get_monitors()
-projector = monitors[1]
-refImages = ["images/pattern1.png", "images/pattern2.png", "images/pattern3.png"]
+user = monitors[0]
+projectorIndex = 1
+refImages = ['images/pattern1.png', 'images/pattern2.png', 'images/pattern3.png']
+
+controlWindowName = 'Projection Control'
+projectionWindowName = 'Projector'
+calibrationImageName = 'calibration.jpg'
+
+class FullScreenWindow(QtWidgets.QMainWindow):
+    def captureImage(self):
+        # initializing web cam  
+        cam = cv2.VideoCapture(0)
+
+        # take a picture
+        _, frame = cam.read()
+
+        # write to file
+        cv2.imwrite(calibrationImageName, frame)
+
+        # close app
+        self.close()
+
+    def __init__(self, image, monitor_index):
+        super().__init__()
+        
+        # set up label to hold the image
+        self.label = QtWidgets.QLabel(self)
+        self.setCentralWidget(self.label)
+        
+        # convert OpenCV image to QImage for PyQt
+        height, width = image.shape
+        bytes_per_line = width
+        q_image = QtGui.QImage(image.data, width, height, bytes_per_line, QtGui.QImage.Format_Grayscale8)
+        
+        # display QImage in the label
+        pixmap = QtGui.QPixmap.fromImage(q_image)
+        self.label.setPixmap(pixmap)
+        
+        # get screen geometry
+        screen = QtWidgets.QApplication.screens()[monitor_index]
+        geometry = screen.geometry()
+        
+        # move and resize the window to fit
+        self.setGeometry(geometry)
+        self.showFullScreen()
+
+        # capture image right away using a timer
+        self.timer = QtCore.QTimer(self)
+        self.timer.timeout.connect(self.captureImage)
+        self.timer.start()
 
 def calibrate(imgIndex: int):
-	try:
-		# Open image
-		refImg = cv2.imread(refImages[imgIndex], cv2.IMREAD_COLOR)
-		
-		# Create a window and move it to the projector screen
-		cv2.namedWindow("ProjectorWindow", cv2.WINDOW_FULLSCREEN)
-		cv2.moveWindow("ProjectorWindow", projector.x, 0)
+    try:
+        # Open image
+        refImg = cv2.imread(refImages[imgIndex], cv2.IMREAD_GRAYSCALE)
+        
+        # Setup projector window
+        cv2.namedWindow(controlWindowName, cv2.WINDOW_FULLSCREEN)    
+        cv2.moveWindow(controlWindowName, user.x, 0)
+        cv2.setWindowProperty(controlWindowName, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
-		# Now set the window to full-screen mode
-		cv2.setWindowProperty("ProjectorWindow", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        # creating the SIFT algorithm 
+        sift = cv2.SIFT_create() 
 
-		# Display the image on the projector screen
-		cv2.imshow("ProjectorWindow", refImg)
+        # find the keypoints and descriptors with SIFT 
+        kpImage, descImage = sift.detectAndCompute(refImg, None) 
 
-		# Keep the window open until a key is pressed
-		cv2.waitKey(0)
+        # initializing the dictionary 
+        indexParams = dict(algorithm = 0, trees = 5) 
+        searchParams = dict() 
 
-		# initializing web cam  
-		cam = cv2.VideoCapture(0) 
+        # by using Flann Matcher 
+        flann = cv2.FlannBasedMatcher(indexParams, searchParams)
 
-		# creating the SIFT algorithm 
-		sift = cv2.SIFT_create() 
+        # create Qt app and window
+        app = QtWidgets.QApplication(sys.argv)
+        window = FullScreenWindow(refImg, projectorIndex)
+        window.show()
 
-		# find the keypoints and descriptors with SIFT 
-		kp_image, desc_image = sift.detectAndCompute(refImg, None) 
+        # Run Qt, exits after picture taken
+        app.exec_()
 
-		# initializing the dictionary 
-		index_params = dict(algorithm = 0, trees = 5) 
-		search_params = dict() 
+        # read image taken by Qt app
+        frame = cv2.imread(calibrationImageName)
 
-		# by using Flann Matcher 
-		flann = cv2.FlannBasedMatcher(index_params, search_params) 
+        # converting the frame into grayscale 
+        grayFrame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) 
 
-		# reading the frame 
-		_, frame = cam.read() 
+        # find the keypoints and descriptors with SIFT 
+        kpGrayFrame, descGrayFrame = sift.detectAndCompute(grayFrame, None) 
 
-		# converting the frame into grayscale 
-		grayframe = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) 
+        # finding nearest match with KNN algorithm 
+        matches= flann.knnMatch(descImage, descGrayFrame, k=2) 
 
-		# find the keypoints and descriptors with SIFT 
-		kp_grayframe, desc_grayframe = sift.detectAndCompute(grayframe, None) 
+        # initialize list to keep track of only good points 
+        goodPoints=[]
 
-		# finding nearest match with KNN algorithm 
-		matches= flann.knnMatch(desc_image, desc_grayframe, k=2) 
+        for m, n in matches: 
+            # append the points according 
+            # to distance of descriptors 
+            if(m.distance < 0.6 * n.distance): 
+                goodPoints.append(m) 
 
-		# initialize list to keep track of only good points 
-		good_points=[] 
+        # maintaining list of index of descriptors 
+        # in query descriptors 
+        queryPts = np.float32([kpImage[m.queryIdx].pt for m in goodPoints]).reshape(-1, 1, 2) 
 
-		for m, n in matches: 
-			#append the points according 
-			#to distance of descriptors 
-			if(m.distance < 0.6*n.distance): 
-				good_points.append(m) 
+        # maintaining list of index of descriptors 
+        # in train descriptors 
+        trainPts = np.float32([kpGrayFrame[m.trainIdx].pt for m in goodPoints]).reshape(-1, 1, 2) 
 
-		# maintaining list of index of descriptors 
-		# in query descriptors 
-		query_pts = np.float32([kp_image[m.queryIdx].pt for m in good_points]).reshape(-1, 1, 2) 
+        # finding perspective transformation 
+        # between two planes 
+        matrix, mask = cv2.findHomography(queryPts, trainPts, cv2.RANSAC, 5.0) 
 
-		# maintaining list of index of descriptors 
-		# in train descriptors 
-		train_pts = np.float32([kp_grayframe[m.trainIdx].pt for m in good_points]).reshape(-1, 1, 2) 
+        # ravel function returns 
+        # contiguous flattened array 
+        # matches_mask = mask.ravel().tolist() 
 
-		# finding perspective transformation 
-		# between two planes 
-		matrix, mask = cv2.findHomography(query_pts, train_pts, cv2.RANSAC, 5.0) 
+        # initializing height and width of the image 
+        h, w = refImg.shape[:2]
 
-		# ravel function returns 
-		# contiguous flattened array 
-		matches_mask = mask.ravel().tolist() 
+        # saving all points in pts 
+        pts = np.float32([[0, 0], [0, h], [w, h], [w, 0]]).reshape(-1, 1, 2) 
 
-		# initializing height and width of the image 
-		h, w = refImg.shape[:2]
+        # applying perspective algorithm 
+        dst = cv2.perspectiveTransform(pts, matrix) 
 
-		# saving all points in pts 
-		pts = np.float32([[0, 0], [0, h], [w, h], [w, 0]]).reshape(-1, 1, 2) 
+        # using drawing function for the frame 
+        homography = cv2.polylines(frame, [np.int32(dst)], True, (255, 0, 0), 3) 
+        
+        # print(homography)
 
-		# applying perspective algorithm 
-		dst = cv2.perspectiveTransform(pts, matrix) 
+        # showing the final output 
+        # with homography 
+        cv2.imshow(controlWindowName, homography)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
-		# using drawing function for the frame 
-		homography = cv2.polylines(frame, [np.int32(dst)], True, (255, 0, 0), 3) 
+    except Exception as e:
+        print(e)
+        cv2.destroyAllWindows()
 
-		# showing the final output 
-		# with homography 
-		cv2.imshow("Homography", homography) 
+        calibrate((imgIndex + 1) % len(refImages)) # Try the next reference image in a circular array
 
-		# cv2.imshow('Camera', frame)
-
-		cv2.waitKey(0)
-		cv2.destroyAllWindows()
-
-	except Exception as e:
-		print(e)
-		cv2.destroyAllWindows()
-		calibrate((imgIndex + 1) % len(refImages)) # Try the next reference image in a circular array
-
-	# finally:
-	# 	cv2.destroyAllWindows()
+    finally:
+    	cv2.destroyAllWindows()
 
 def main():
     calibrate(0)
-	
-if __name__ == "__main__":
+    
+if __name__ == '__main__':
     main()

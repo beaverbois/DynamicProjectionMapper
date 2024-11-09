@@ -65,8 +65,10 @@ class ContourDetector():
             # Get the bounding box of each contour
             x, y, w, h = cv2.boundingRect(contour)
 
-            if w * h > int((xDist * yDist) / 1.5):
+            if w * h > int((xDist * yDist) / 2):
                 continue
+
+            pts = contour.reshape((-1, 1, 2))
 
             # cv2.rectangle(edges, (x, y), (x + w, y + h), (255, 255, 255), 2)
             perimeter = cv2.arcLength(contour, True)
@@ -77,7 +79,8 @@ class ContourDetector():
             # Approximate the contour
             approx_polygon = cv2.approxPolyDP(contour, epsilon, True)
 
-            edges = cv2.drawContours(edges, [approx_polygon], -1, (255, 255, 255), 10)
+            # edges = cv2.drawContours(edges, [approx_polygon], -1, (255, 255, 255), 10)
+            edges = cv2.polylines(edges, [pts], True, (255, 255, 255), 10)
         
         edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, (9, 9), iterations=19)
         

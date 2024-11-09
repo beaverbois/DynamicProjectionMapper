@@ -93,18 +93,18 @@ class ContourDetector():
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
 
-        # cv2.drawContours(contour_image, [maxContour], -1, (255, 255, 255), cv2.FILLED)
+        cv2.drawContours(contour_image, [maxContour], -1, (255, 255, 255), cv2.FILLED)
 
-        # return contour_image
-        return maxContour
+        return contour_image
+        # return maxContour
 
     def scaleImage(contour, homography):
 
         # Koala
         projection = cv2.imread("images/pattern3.png")
         
-        mask = numpy.zeros_like(projection, dtype=numpy.uint8)  # Create a blank mask
-        cv2.fillPoly(mask, [contour], (255))  # Fill the largest contour in the mask
+        # mask = numpy.zeros_like(projection, dtype=numpy.uint8)  # Create a blank mask
+        # cv2.fillPoly(mask, [contour], (255))  # Fill the largest contour in the mask
 
         # # Resize the target image to match the source image size (if necessary)
         # target_resized = cv2.resize(projection, (image.shape[1], image.shape[0]))

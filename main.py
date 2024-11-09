@@ -94,12 +94,15 @@ def calibrate(refPattern):
 
 		cv2.waitKey(0)
 		cv2.destroyAllWindows()
-	except:
-		print("Exception occured")
-	finally:
+
+	except Exception as e:
+		print(e)
 		cv2.destroyAllWindows()
 		backupPattern = cv2.imread("pattern2.png", cv2.IMREAD_GRAYSCALE)
 		calibrate(backupPattern)
+
+	finally:
+		cv2.destroyAllWindows()
 
 refPattern = cv2.imread("pattern.png", cv2.IMREAD_GRAYSCALE)
 calibrate(refPattern)

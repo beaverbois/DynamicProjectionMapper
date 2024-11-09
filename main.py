@@ -6,7 +6,7 @@ from screeninfo import get_monitors
 monitors = get_monitors()
 projector = monitors[1]
 
-image = cv2.imread("pattern.png", cv2.IMREAD_GRAYSCALE)
+refPattern = cv2.imread("pattern.png", cv2.IMREAD_GRAYSCALE)
 
 # Create a window and move it to the projector screen
 cv2.namedWindow("ProjectorWindow", cv2.WINDOW_FULLSCREEN)
@@ -16,22 +16,19 @@ cv2.moveWindow("ProjectorWindow", projector.x, 0)
 cv2.setWindowProperty("ProjectorWindow", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
 # Display the image on the projector screen
-cv2.imshow("ProjectorWindow", image)
+cv2.imshow("ProjectorWindow", refPattern)
 
 # Keep the window open until a key is pressed
 cv2.waitKey(0)
 
 # initializing web cam  
-cam = cv2.VideoCapture(1) 
-
-# take image
-img = cam.read()
+cam = cv2.VideoCapture(0) 
 
 # creating the SIFT algorithm 
-sift = cv2.xfeatures2d.SIFT_create() 
+sift = cv2.SIFT_create() 
 
 # find the keypoints and descriptors with SIFT 
-kp_image, desc_image =sift.detectAndCompute(img, None) 
+kp_image, desc_image = sift.detectAndCompute(refPattern, None) 
 
 # initializing the dictionary 
 index_params = dict(algorithm = 0, trees = 5) 
@@ -78,7 +75,7 @@ matrix, mask = cv2.findHomography(query_pts, train_pts, cv2.RANSAC, 5.0)
 matches_mask = mask.ravel().tolist() 
 
 # initializing height and width of the image 
-h, w = img.shape 
+h, w = refPattern.shape[:2]
 
 # saving all points in pts 
 pts = np.float32([[0, 0], [0, h], [w, h], [w, 0]]).reshape(-1, 1, 2) 
@@ -92,3 +89,8 @@ homography = cv2.polylines(frame, [np.int32(dst)], True, (255, 0, 0), 3)
 # showing the final output 
 # with homography 
 cv2.imshow("Homography", homography) 
+
+# cv2.imshow('Camera', frame)
+
+cv2.waitKey(0)
+cv2.destroyAllWindows()

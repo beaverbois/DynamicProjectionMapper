@@ -1,6 +1,7 @@
 import cv2 
 import numpy as np
 import sys
+from ObjectDetection import ContourDetector
 from screeninfo import get_monitors
 from consts import Consts
 from PyQt5 import QtWidgets
@@ -78,7 +79,10 @@ def calibrate(imgIndex: int):
         pts = np.float32([[0, 0], [0, h], [w, h], [w, 0]]).reshape(-1, 1, 2) 
 
         # applying perspective algorithm 
-        dst = cv2.perspectiveTransform(pts, matrix) 
+        dst = cv2.perspectiveTransform(pts, matrix)
+
+        contour = ContourDetector.getMask(frame)
+        ContourDetector.scaleImage(contour, dst)
 
         # using drawing function for the frame 
         homography = cv2.polylines(frame, [np.int32(dst)], True, (255, 0, 0), 3) 

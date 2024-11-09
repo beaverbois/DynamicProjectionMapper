@@ -1,6 +1,7 @@
 import cv2
 import numpy
-import pyautogui
+from screeninfo import get_monitors
+from consts import Consts
 
 class ContourDetector():
     def getMask(img):
@@ -118,7 +119,7 @@ class ContourDetector():
 
         for point in contour_homogeneous:
             # Apply inverse homography
-            transformed_point = numpy.dot(numpy.linalg.inv(homography), point.T)
+            transformed_point = numpy.dot(homography, point.T)
             transformed_point /= transformed_point[2]  # Normalize to make it homogeneous again
             contour_transformed.append(transformed_point[:2])  # Keep only (x, y)
 
@@ -178,9 +179,9 @@ class ContourDetector():
         # Wait for a key press and close the windows
 
     def test(self):
-
         image = cv2.imread("images/test.jpg", cv2.IMREAD_UNCHANGED)
-        screen = pyautogui.size()
+        screen = get_monitors()[Consts.DISPLAY_INDEX]
+
         # screenRatio = float(screen.width) / float(screen.height)
         # dim = image.shape
         # ratio = float(dim[0]) / float(dim[1])

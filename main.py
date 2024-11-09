@@ -1,7 +1,7 @@
 import cv2 
 import numpy as np
 import sys
-from ObjectDetection import ContourDetector
+from contours import ContourDetector
 from screeninfo import get_monitors
 from consts import Consts
 from PyQt5 import QtWidgets

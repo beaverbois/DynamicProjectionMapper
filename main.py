@@ -22,7 +22,7 @@ def calibrate(imgIndex: int):
 
         # initializing the dictionary 
         indexParams = dict(algorithm = 0, trees = 5) 
-        searchParams = dict() 
+        searchParams = dict()
 
         # by using Flann Matcher
         flann = cv2.FlannBasedMatcher(indexParams, searchParams)
@@ -66,7 +66,7 @@ def calibrate(imgIndex: int):
 
         # finding perspective transformation 
         # between two planes 
-        matrix, mask = cv2.findHomography(queryPts, trainPts, cv2.RANSAC, 5.0) 
+        homography, status = cv2.findHomography(queryPts, trainPts, cv2.RANSAC, 5.0) 
 
         # ravel function returns 
         # contiguous flattened array 
@@ -79,18 +79,29 @@ def calibrate(imgIndex: int):
         pts = np.float32([[0, 0], [0, h], [w, h], [w, 0]]).reshape(-1, 1, 2) 
 
         # applying perspective algorithm 
-        dst = cv2.perspectiveTransform(pts, matrix)
+        dst = cv2.perspectiveTransform(pts, homography)
 
-        contour = ContourDetector.getMask(frame)
-        ContourDetector.scaleImage(contour, dst)
+        cam = cv2.VideoCapture(0)
+
+        # set resolution
+        cam.set(cv2.CAP_PROP_FRAME_WIDTH, Consts.CAMERA_WIDTH)
+        cam.set(cv2.CAP_PROP_FRAME_HEIGHT, Consts.CAMERA_HEIGHT)
+
+        # take a picture
+        _, frame = cam.read()
 
         # using drawing function for the frame 
-        homography = cv2.polylines(frame, [np.int32(dst)], True, (255, 0, 0), 3) 
+        homographyImg = cv2.polylines(frame, [np.int32(dst)], True, (255, 0, 0), 3) 
 
-        cv2.imwrite(Consts.HOMOGRAPHY_IMAGE_PATH, homography)
+        # write homography image
+        cv2.imwrite(Consts.HOMOGRAPHY_IMAGE_PATH, homographyImg)
+
+        # identify countours
+        # contour = ContourDetector(frame, dst)
+        # contour.scaleImage(contour, homography)
         
         # app = QtWidgets.QApplication(sys.argv)
-        window = UserWindow(homography)
+        window = UserWindow(homographyImg)
         window.show()
 
         # run Qt, exits after picture taken

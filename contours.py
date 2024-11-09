@@ -1,10 +1,10 @@
 import cv2
 import numpy
-import pyautogui
+from consts import Consts
+from screeninfo import get_monitors
 
 class ContourDetector():
-    def getMask(img):
-
+    def __init__(self, img, dst):
         # Convert the image to grayscale
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
@@ -17,7 +17,7 @@ class ContourDetector():
         # Dilate and erode
         edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, (5, 5), iterations=2)
         
-        edges = cv2.rectangle(edges, (0, 20), (1600, 500), (255, 255, 255), 2)
+        edges = cv2.drawContours(edges, [dst], -1, (255, 255, 255), 2)
 
         # Show the original and edge-detected images
         # cv2.imshow('Original Image', img)
@@ -47,8 +47,8 @@ class ContourDetector():
             edges = cv2.drawContours(edges, [approx_polygon], -1, (255, 255, 255), 2)
         
         edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, (5, 5), iterations=2)
-
-        edges = cv2.rectangle(edges, (0, 20), (1600, 500), (255, 255, 255), 2)
+        
+        edges = cv2.drawContours(edges, [dst], (255, 255, 255), 2)
 
         # cv2.drawContours(contour_image, contours, -1, (255, 255, 255), 2)
         cv2.imshow("Round 1", edges)
@@ -95,11 +95,9 @@ class ContourDetector():
 
         # cv2.drawContours(contour_image, [maxContour], -1, (255, 255, 255), cv2.FILLED)
 
-        return contour_image
-        # return maxContour
+        self.mask = maxContour
 
-    def scaleImage(contour, homography):
-
+    def scaleImage(self, contour, homography):
         # Koala
         projection = cv2.imread("images/pattern3.png")
         
@@ -129,8 +127,6 @@ class ContourDetector():
         # mask = numpy.zeros_like(image, dtype=numpy.uint8)  # Create a blank mask
         # cv2.fillPoly(mask, [contour_transformed], (255))  # Fill the largest contour in the mask
 
-        mask_transform = None # Set this variable
-
         # # Create a blank canvas for the output image
         # output_image = numpy.zeros((300, 300, 3), dtype=numpy.uint8)
 
@@ -141,7 +137,10 @@ class ContourDetector():
         # cv2.polylines(output_image, [contour_transformed], isClosed=True, color=(0, 255, 0), thickness=2)
 
         # Extract the region inside the contour from the source image using the mask
-        contour_region = cv2.bitwise_and(projection, projection, mask=mask_transform)
+        contour_region = cv2.bitwise_and(projection, projection, mask=self.mask)
+        
+        out = cv2.Mat()
+        mask_transform = cv2.warpPerspective(contour_region, out, homography, projection.shape[:2]) # Set this variable
 
         # # Use the inverse mask to keep the background of the target image
         # background = cv2.bitwise_and(contour_region, contour_region, mask=inverse_mask)
@@ -149,7 +148,7 @@ class ContourDetector():
         # # Overlay the contour region onto the target image
         # result = cv2.add(background, contour_region)
 
-        cv2.imshow("Mask", contour_region)
+        cv2.imshow("Mask", mask_transform)
 
         # cv2.imshow("Image with Contours", contour_image)
         # # cv2.imshow("Image Flooded", flooded_image)
@@ -179,9 +178,8 @@ class ContourDetector():
         # Wait for a key press and close the windows
 
     def test():
-
         image = cv2.imread("images/test.jpg", cv2.IMREAD_UNCHANGED)
-        screen = pyautogui.size()
+        screen = get_monitors()[Consts.DISPLAY_INDEX]
         # screenRatio = float(screen.width) / float(screen.height)
         # dim = image.shape
         # ratio = float(dim[0]) / float(dim[1])

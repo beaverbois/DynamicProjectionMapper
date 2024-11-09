@@ -1,72 +1,17 @@
 import cv2 
 import numpy as np
 import sys
-import time
 from screeninfo import get_monitors
-from PyQt5 import QtWidgets, QtGui, QtCore
+from consts import Consts
+from PyQt5 import QtWidgets
+from windows import ProjectorWindow, UserWindow
 
-monitors = get_monitors()
-user = monitors[0]
-assert len(monitors) > 1
-projectorIndex = 1
 refImages = ['images/pattern1.png', 'images/pattern2.png', 'images/pattern3.png']
-
-controlWindowName = 'Projection Control'
-projectionWindowName = 'Projector'
-calibrationImageName = 'calibration.jpg'
-
-class FullScreenWindow(QtWidgets.QMainWindow):
-    def captureImage(self):
-        # initializing web cam  
-        cam = cv2.VideoCapture(0)
-
-        # take a picture
-        _, frame = cam.read()
-
-        # write to file
-        cv2.imwrite(calibrationImageName, frame)
-
-        # close app
-        self.close()
-
-    def __init__(self, image, monitor_index):
-        super().__init__()
-        
-        # set up label to hold the image
-        self.label = QtWidgets.QLabel(self)
-        self.setCentralWidget(self.label)
-        
-        # convert OpenCV image to QImage for PyQt
-        height, width = image.shape
-        bytes_per_line = width
-        q_image = QtGui.QImage(image.data, width, height, bytes_per_line, QtGui.QImage.Format_Grayscale8)
-        
-        # display QImage in the label
-        pixmap = QtGui.QPixmap.fromImage(q_image)
-        self.label.setPixmap(pixmap)
-        
-        # get screen geometry
-        screen = QtWidgets.QApplication.screens()[monitor_index]
-        geometry = screen.geometry()
-        
-        # move and resize the window to fit
-        self.setGeometry(geometry)
-        self.showFullScreen()
-
-        # capture image right away using a timer
-        self.timer = QtCore.QTimer(self)
-        self.timer.timeout.connect(self.captureImage)
-        self.timer.start()
 
 def calibrate(imgIndex: int):
     try:
         # Open image
         refImg = cv2.imread(refImages[imgIndex], cv2.IMREAD_GRAYSCALE)
-        
-        # Setup projector window
-        cv2.namedWindow(controlWindowName, cv2.WINDOW_FULLSCREEN)    
-        cv2.moveWindow(controlWindowName, user.x, 0)
-        cv2.setWindowProperty(controlWindowName, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
         # creating the SIFT algorithm 
         sift = cv2.SIFT_create() 
@@ -78,19 +23,19 @@ def calibrate(imgIndex: int):
         indexParams = dict(algorithm = 0, trees = 5) 
         searchParams = dict() 
 
-        # by using Flann Matcher 
+        # by using Flann Matcher
         flann = cv2.FlannBasedMatcher(indexParams, searchParams)
 
         # create Qt app and window
         app = QtWidgets.QApplication(sys.argv)
-        window = FullScreenWindow(refImg, projectorIndex)
+        window = ProjectorWindow(refImg)
         window.show()
 
         # Run Qt, exits after picture taken
         app.exec_()
 
         # read image taken by Qt app
-        frame = cv2.imread(calibrationImageName)
+        frame = cv2.imread(Consts.CALIBRATION_IMAGE_PATH)
 
         # converting the frame into grayscale 
         grayFrame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) 
@@ -137,14 +82,15 @@ def calibrate(imgIndex: int):
 
         # using drawing function for the frame 
         homography = cv2.polylines(frame, [np.int32(dst)], True, (255, 0, 0), 3) 
-        
-        # print(homography)
 
-        # showing the final output 
-        # with homography 
-        cv2.imshow(controlWindowName, homography)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        cv2.imwrite(Consts.HOMOGRAPHY_IMAGE_PATH, homography)
+        
+        # app = QtWidgets.QApplication(sys.argv)
+        window = UserWindow(homography)
+        window.show()
+
+        # run Qt, exits after picture taken
+        app.exec_()
 
     except Exception as e:
         print(e)
@@ -156,6 +102,7 @@ def calibrate(imgIndex: int):
     	cv2.destroyAllWindows()
 
 def main():
+    assert len(get_monitors()) > 1 # throws if no webcam connected
     calibrate(0)
     
 if __name__ == '__main__':

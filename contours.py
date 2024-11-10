@@ -17,33 +17,42 @@ class ContourDetector():
     differenceThresh = 20
     numChangedPix = 0.001
 
+    numUpdates = 0
+    updateFreq = 20
+
     def __init__(self, dst):
         # Get values from dst
 
         # print(dst)
         # dst = numpy.array(dst)
 
-        dstMinX = dst[0][0][0]
-        dstMinY = dst[0][0][1]
-        dstMaxX = dst[0][0][0]
-        dstMaxY = dst[0][0][1]
-
+        self.dstMinX = dst[0][0][0]
+        self.dstMinY = dst[0][0][1]
+        self.dstMaxX = dst[0][0][0]
+        self.dstMaxY = dst[0][0][1]
 
         for i in range(len(dst)):
-            dstMinX = min(dstMinX, dst[i][0][0])
-            dstMaxX = max(dstMaxX, dst[i][0][0])
-            dstMinY = min(dstMinY, dst[i][0][1])
-            dstMaxY = max(dstMaxY, dst[i][0][1])
+            self.dstMinX = min(self.dstMinX, dst[i][0][0])
+            self.dstMaxX = max(self.dstMaxX, dst[i][0][0])
+            self.dstMinY = min(self.dstMinY, dst[i][0][1])
+            self.dstMaxY = max(self.dstMaxY, dst[i][0][1])
 
-        self.xDist = dstMaxX - dstMinX
-        self.yDist = dstMaxY - dstMinY
+        self.xDist = self.dstMaxX - self.dstMinX
+        self.yDist = self.dstMaxY - self.dstMinY
         self.dst = dst
 
         self.numChangedPix *= self.xDist * self.yDist
 
+        self.foregroundMask = None
+        self.backgroundSubtractor = cv2.createBackgroundSubtractorMOG2(detectShadows=True)
+
     def processFrame(self, img):
-        # Convert the image to grayscale
+        # Convert the image to HSV
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+        if self.foregroundMask == None:
+            self.foregroundMask = numpy.zeros_like(img, dtype=numpy.uint8)
+            self.foregroundMask = cv2.cvtColor(self.foregroundMask, cv2.COLOR_BGR2GRAY)
 
         self.last = gray
 
@@ -60,7 +69,7 @@ class ContourDetector():
 
         # Show the original and edge-detected images
         # cv2.imshow('Original Image', img)
-        # cv2.imshow('Canny Edge Detection', edges)
+        cv2.imshow('Canny Edge Detection', edges)
 
         # Find contours from the edges image
         contours, hierarchy = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -94,11 +103,12 @@ class ContourDetector():
         edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, (9, 9), iterations=19)
         
         edges = cv2.drawContours(edges, [self.dst], -1, (255, 255, 255), 10)
+        edges = cv2.rectangle(edges, (0, 0), (edges.shape[0], edges.shape[1]), (255, 255, 255), 5)
 
         # cv2.drawContours(contour_image, contours, -1, (255, 255, 255), 2)
-        # cv2.imshow("Round 1", edges)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
+        cv2.imshow("Round 1", edges)
+        cv2.waitKey(0)  
+        cv2.destroyAllWindows()
 
         contours, hierarchy = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -110,7 +120,7 @@ class ContourDetector():
             # Get the bounding box of each contour
             x, y, w, h = cv2.boundingRect(contour)
 
-            if w*h > maxSize and w*h < self.xDist * self.yDist:
+            if w*h > maxSize and w*h < self.xDist * self.yDist and x > self.dstMinX and x+w < self.dstMaxX and y > self.dstMinY and y+h < self.dstMaxY:
                 maxSize = w*h
                 maxContour = contour
 
@@ -143,23 +153,49 @@ class ContourDetector():
         cv2.drawContours(contour_image, [maxContour], -1, (255, 255, 255), cv2.FILLED)
 
         # self.mask = cv2.cvtColor(contour_image, cv2.COLOR_BGR2GRAY)
-        self.mask = contour_image
+        self.backgroundMask = contour_image
+
+    def __updateMask(self, frame):
+        # Optional: Perform morphological operations to clean up the mask (remove noise)
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))  # Define a kernel for morphological operation
+        fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_CLOSE, kernel)  # Close small holes in the foreground mask
+        fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, kernel)   # Remove small noise
+
+        self.foregroundMask = fg_mask
 
     def checkForChange(self, frame):
-        numChanged = 0
+        # Update fg_mask
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        fg_mask = self.backgroundSubtractor.apply(frame)
+        # Update on a set interval
+        self.numUpdates += 1
+        if self.numUpdates >= 20:
+            self.numUpdates = 0
+            self.processFrame(frame)
+            self.__updateMask(frame)
+            return
+        # Check for enough change to redo the mask
+        numChanged = 0
         avrChange = numpy.mean(cv2.absdiff(self.last, frame))
         for row in range(len(frame)):
             for col in range(len(row)):
                 if abs(frame[row][col][0] - self.last[row][col][0]) > self.differenceThresh + avrChange:
                     numChanged += 1
-        if numChanged > self.numChangedPix:
-            self.processFrame(frame)
+                    if numChanged > self.numChangedPix:
+                        self.updateMask(frame)
+                        break
 
     def interpolateImage(self, homography):
         # Koala
         projection = cv2.imread("images/pattern1.png")
+        print(self.backgroundMask.shape)
+        print(self.foregroundMask.shape)
         
+        self.mask = cv2.bitwise_and(self.backgroundMask, self.foregroundMask)
+        cv2.imshow("", self.backgroundMask)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
         # mask = numpy.zeros_like(projection, dtype=numpy.uint8)  # Create a blank mask
         # cv2.fillPoly(mask, [contour], (255))  # Fill the largest contour in the mask
 

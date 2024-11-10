@@ -140,17 +140,17 @@ class ContourDetector():
         # fg_mask = cv2.bitwise_not(fg_mask, all)
 
         # # Save in self.foregroundMask
-        # gray = cv2.cvtColor(self.foregroundMask, cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(self.foregroundMask, cv2.COLOR_BGR2GRAY)
 
-        self.foregroundMask = numpy.full_like(frame, 255, dtype=numpy.uint8)
+        self.foregroundMask = numpy.full_like(gray, 255, dtype=numpy.uint8)
         face_cor = self.model.detectMultiScale(frame)
         if len(face_cor) != 0:
             for face in face_cor:
-                tmp = numpy.full_like(frame, 255, dtype=numpy.uint8)
+                tmp = numpy.full_like(gray, 255, dtype=numpy.uint8)
                 x, y, w, h = face
                 x2, y2 = x+w, y+h
-                # tmp = cv2.rectangle(tmp, (x, y), (x2, y2), 0, cv2.FILLED)
-                tmp = cv2.ellipse(tmp, (x+w/2, y+h/2), (w/2,h/2), 0, 0, 0, color=0, thickness=cv2.FILLED)
+                tmp = cv2.rectangle(tmp, (x, max(0, y-h//2)), (x2, y2), 0, cv2.FILLED)
+                # tmp = cv2.ellipse(tmp, (x+w/2, y+h/2), (w/2,h/2), 0, 0, 0, color=0, thickness=cv2.FILLED)
                 self.foregroundMask = cv2.bitwise_and(tmp, self.foregroundMask)
 
         self.last = frame
@@ -167,9 +167,11 @@ class ContourDetector():
         #     return
         
         # Check for enough change to know there was movement. If so, update the foreground mask
-        avr = numpy.mean(numpy.abs(cv2.subtract(gray.astype(numpy.int16), self.last.astype(numpy.int16))))
-        if avr > self.differenceThresh:
-            self.__updateMask(gray)
+        # avr = numpy.mean(numpy.abs(cv2.subtract(gray.astype(numpy.int16), self.last.astype(numpy.int16))))
+        # if avr > self.differenceThresh:
+        #     self.__updateMask(frame)
+        self.__updateMask(frame)
+        # self.processFrame(frame)
 
     def interpolateImage(self):
         # Koala

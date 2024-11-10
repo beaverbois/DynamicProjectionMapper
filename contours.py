@@ -60,7 +60,7 @@ class ContourDetector():
         blurred = cv2.GaussianBlur(gray, (3, 3), 0)
 
         # Perform Canny edge detection
-        # edges = cv2.Canny(blurred, threshold1=50, threshold2=200, apertureSize=3)
+        edges = cv2.Canny(blurred, threshold1=50, threshold2=200, apertureSize=3)
 
 
         # Dilate and erode

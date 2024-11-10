@@ -7,7 +7,7 @@ from PyQt5 import QtWidgets
 
 class ContourDetector():
     # Constants
-    differenceThresh = 50
+    differenceThresh = 80
     updateFreq = 20
 
     # Counter for tracking number of times a new frame is sent in
@@ -44,18 +44,27 @@ class ContourDetector():
 
         self.model = cv2.CascadeClassifier("images/calib/haarcascade_frontalface_default.xml")
 
-        self.project = cv2.cvtColor(cv2.imread(Consts.CALIBRATION_IMAGES[0]), cv2.COLOR_BGR2GRAY)
+        self.project = cv2.imread(Consts.CALIBRATION_IMAGES[2])
 
     def thresholdFrame(self, img):
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        proj = cv2.drawContours(gray, [self.dst], -1, 255, thickness=cv2.FILLED)
-        tmp = numpy.full_like(gray, 255, dtype=numpy.uint8)
-        mask = cv2.bitwise_not(tmp, proj)
-        gray[mask==255] = mask[mask==255]
+        projectGray = cv2.cvtColor(self.project, cv2.COLOR_BGR2GRAY)
+        # black = numpy.zeros_like(gray, 0)
+        # black = cv2.drawContours(black, [self.dst], -1, 255, thickness=cv2.FILLED)
+        # tmp = numpy.full_like(gray, 255, dtype=numpy.uint8)
+        # mask = cv2.bitwise_and(gray, tmp, )
+        # cv2.imshow("Mask", mask)
+        # cv2.imshow("Gray", gray)
+
+        # gray[mask==255] = mask[mask==255]
+
+        # cv2.imshow("Gray2", gray)
         transform = cv2.warpPerspective(gray, numpy.linalg.inv(self.homography), (self.project.shape[1], self.project.shape[0]))
-        diff = numpy.abs(cv2.subtract(transform.astype(numpy.int16), self.project.astype(numpy.int16)))
-        _, thresh = cv2.threshold(diff, self.differenceThresh, 255, cv2.THRESH_BINARY_INV)
-        return cv2.bitwise_and(self.project, self.project, thresh)
+        diff = numpy.abs(cv2.subtract(transform.astype(numpy.int16), projectGray.astype(numpy.int16))).astype(numpy.uint8)
+        _, thresh = cv2.threshold(diff, self.differenceThresh, 255, type=cv2.THRESH_BINARY_INV)
+        proj = self.project.astype(numpy.uint8)
+        a = cv2.bitwise_and(proj, proj, mask=thresh)
+        return a
 
     def processFrame(self, img):
         # Convert the image to HSV
@@ -93,7 +102,7 @@ class ContourDetector():
         edges = cv2.drawContours(edges, [self.dst], -1, (255, 255, 255), 5)
         edges = cv2.rectangle(edges, (0, 0), (edges.shape[1], edges.shape[0]), (255, 255, 255), 5)
 
-        cv2.imshow("Edges", edges)
+        # cv2.imshow("Edges", edges)
 
         # Find contours from edges
         contours, hierarchy = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -119,7 +128,7 @@ class ContourDetector():
         
         # edges = cv2.drawContours(edges, [self.dst], -1, (255, 255, 255), 10
 
-        cv2.imshow("Contours", edges)
+        # cv2.imshow("Contours", edges)
 
         # Find contours a second time, using other bounding boxes to help close gaps and increase accuracy
         contours, hierarchy = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -140,9 +149,9 @@ class ContourDetector():
         contour_image = numpy.zeros_like(edges, dtype=numpy.uint8)
         cv2.drawContours(contour_image, [maxContour], -1, (255, 255, 255), cv2.FILLED)
 
-        cv2.imshow("c", contour_image)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        # cv2.imshow("c", contour_image)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
 
         self.backgroundMask = contour_image
 
@@ -159,35 +168,37 @@ class ContourDetector():
 
     def __updateMask(self, frame):
         # Get the foreground mask, update model
-        # fg_mask = self.backgroundSubtractor.apply(frame)
+        fg_mask = self.backgroundSubtractor.apply(frame)
 
-        # # Morphology for noise cleaning
-        # kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-        # fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_CLOSE, kernel)
-        # fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, kernel)
+        # Morphology for noise cleaning
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_CLOSE, kernel)
+        fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, kernel)
 
-        # # Invert mask: anything white is set to black, anything else is set to white
-        # all = numpy.full_like(frame, (255, 255, 255), dtype=numpy.uint8)
-        # fg_mask = cv2.bitwise_not(fg_mask, all)
+        # Invert mask: anything white is set to black, anything else is set to white
+        all = numpy.full_like(frame, (255, 255, 255), dtype=numpy.uint8)
+        fg_mask = cv2.bitwise_not(fg_mask, all)
+
+        self.foregroundMask = fg_mask
 
         # # Save in self.foregroundMask
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        # gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-        self.foregroundMask = numpy.full_like(gray, 255, dtype=numpy.uint8)
-        face_cor = self.model.detectMultiScale(frame)
-        if len(face_cor) != 0:
-            for face in face_cor:
-                tmp = numpy.full_like(gray, 255, dtype=numpy.uint8)
-                x, y, w, h = face
-                x2, y2 = x+w, y+h
-                tmp = cv2.rectangle(tmp, (max(0, x-w//2), max(0, y-h//2)), (min(tmp.shape[1], x2+w//2), min(tmp.shape[0], y2+h//2)), 0, cv2.FILLED)
-                # tmp = cv2.ellipse(tmp, (x+w/2, y+h/2), (w/2,h/2), 0, 0, 0, color=0, thickness=cv2.FILLED)
-                self.foregroundMask = cv2.bitwise_and(tmp, self.foregroundMask)
+        # self.foregroundMask = numpy.full_like(gray, 255, dtype=numpy.uint8)
+        # face_cor = self.model.detectMultiScale(frame)
+        # if len(face_cor) != 0:
+        #     for face in face_cor:
+        #         tmp = numpy.full_like(gray, 255, dtype=numpy.uint8)
+        #         x, y, w, h = face
+        #         x2, y2 = x+w, y+h
+        #         tmp = cv2.rectangle(tmp, (max(0, x-w//2), max(0, y-h//2)), (min(tmp.shape[1], x2+w//2), min(tmp.shape[0], y2+h//2)), 0, cv2.FILLED)
+        #         # tmp = cv2.ellipse(tmp, (x+w/2, y+h/2), (w/2,h/2), 0, 0, 0, color=0, thickness=cv2.FILLED)
+        #         self.foregroundMask = cv2.bitwise_and(tmp, self.foregroundMask)
 
-        self.last = frame
+        # self.last = frame
 
     def checkForChange(self, frame: cv2.Mat):
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        # gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         # Update backgroundMask (and foregroundMask) at a set interval
         # self.numUpdates += 1
@@ -206,15 +217,14 @@ class ContourDetector():
 
     def interpolateImage(self):
         # Koala
-        projection = cv2.imread(Consts.CALIBRATION_IMAGES[0])
         
         # Assemble the full mask. Known background is in white on backgroundMask, known foreground is in black on foregroundMask
         mask = cv2.bitwise_and(self.backgroundMask, self.foregroundMask)
 
-        cv2.imshow("m", mask)
+        # cv2.imshow("m", mask)
 
         # Use the homography matrix to map each part of the mask to the equivalent part on the projection
-        mask_transform = cv2.warpPerspective(mask, numpy.linalg.inv(self.homography), (projection.shape[1], projection.shape[0]))
+        mask_transform = cv2.warpPerspective(mask, numpy.linalg.inv(self.homography), (self.project.shape[1], self.project.shape[0]))
 
         # # Get the edges of the mask, can use to outline each foreground object
         # outlineMat = cv2.Canny(mask, threshold1=100, threshold2=200)
@@ -225,7 +235,7 @@ class ContourDetector():
         # tmp[outlineMat == 255] = outlineMat[outlineMat == 255]
 
         # Map the region of the projection we want to itself, leaving the rest as black
-        contour_region = cv2.bitwise_and(projection, projection, mask=mask_transform)
+        contour_region = cv2.bitwise_and(self.project, self.project, mask=mask_transform)
 
         self.last = cv2.cvtColor(contour_region, cv2.COLOR_BGR2GRAY)
 

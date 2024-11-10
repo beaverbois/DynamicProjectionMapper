@@ -9,4 +9,4 @@ class Consts:
     CAMERA_WIDTH = 3840
     CAMERA_HEIGHT = 2160
     CALIBRATION_IMAGES = ['images/calib/1.png', 'images/calib/2.png', 'images/calib/3.png']
-    TEXTURE_IMAGES = ['images/textures']
+    TEXTURES_PATH = 'images/textures'

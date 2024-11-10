@@ -113,6 +113,7 @@ def calibrate(imgIndex: int):
         
         # identify countours
         cd = ContourDetector(np.int32(dst), homography)
+        cd = ContourDetector(np.int32(dst), homography)
         cd.processFrame(frame)
 
         return cd

@@ -14,8 +14,6 @@ import os
 import time
 from progressbar import progressbar
 
-refImages = ['images/pattern1.png', 'images/pattern2.png', 'images/pattern3.png']
-
 cd = None
 homography = None
 
@@ -39,7 +37,7 @@ def calibrate(imgIndex: int):
         if os.path.exists(Consts.HOMOGRAPHY_IMAGE_PATH):
             os.remove(Consts.HOMOGRAPHY_IMAGE_PATH)
         # Open image
-        refImg = cv2.imread(refImages[imgIndex], cv2.IMREAD_GRAYSCALE)
+        refImg = cv2.imread(Consts.CALIBRATION_IMAGES[imgIndex], cv2.IMREAD_GRAYSCALE)
 
         # creating the SIFT algorithm 
         sift = cv2.SIFT_create() 
@@ -150,7 +148,7 @@ def calibrate(imgIndex: int):
         print(e)
         cv2.destroyAllWindows()
 
-        calibrate((imgIndex + 1) % len(refImages)) # Try the next reference image in a circular array
+        calibrate((imgIndex + 1) % len(Consts.CALIBRATION_IMAGES)) # Try the next reference image in a circular array
 
     finally:
     	cv2.destroyAllWindows()

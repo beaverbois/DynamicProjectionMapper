@@ -1,11 +1,13 @@
 import cv2
 import numpy
+import cython
 from consts import Consts
 from screeninfo import get_monitors
 
 from windows import ProjectorWindow, UserWindow
 from PyQt5 import QtWidgets
 import sys
+import time
 
 class ContourDetector():
     blurXMod = 0.005
@@ -14,7 +16,7 @@ class ContourDetector():
     dilateXMod = 0.02
     dilateYMod = 0.01
 
-    differenceThresh = 10
+    differenceThresh = -1
     numChangedPix = 0.001
 
     numUpdates = 0
@@ -170,13 +172,14 @@ class ContourDetector():
         fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_CLOSE, kernel)  # Close small holes in the foreground mask
         fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, kernel)   # Remove small noise
 
-        for row in range(len(fg_mask)):
-            for col in range(len(fg_mask[0])):
-                fg_mask[row][col] = 255 if fg_mask[row][col] < 255 else 0
+        all = numpy.full_like(frame, (255, 255, 255), dtype=numpy.uint8)
+        fg_mask = cv2.bitwise_not(fg_mask, all)
+
+        # cv2.imshow("Please", fg_mask)
 
         self.foregroundMask = fg_mask
 
-    def checkForChange(self, frame):
+    def checkForChange(self, frame: cv2.Mat):
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         # Update on a set interval
         self.numUpdates += 1
@@ -186,16 +189,9 @@ class ContourDetector():
             self.__updateMask(frame)
             return
         # Check for enough change to redo the mask
-        numChanged = 0
-        # avrChange = numpy.mean(cv2.absdiff(self.last, gray))
-        for row in range(len(gray)):
-            for col in range(len(gray[0])):
-                if abs(int(gray[row][col]) - int(self.last[row][col])) > self.differenceThresh: # + avrChange
-                    # print("Found difference", abs(int(gray[row][col]) - int(self.last[row][col])), gray[row][col], self.last[row][col])
-                    numChanged += 1
-                    if numChanged > self.numChangedPix:
-                        self.__updateMask(frame)
-                        return
+        avr = numpy.mean(numpy.abs(cv2.subtract(gray.astype(numpy.int16), self.last.astype(numpy.int16))))
+        if avr > self.differenceThresh:
+            self.__updateMask(frame)
 
     def interpolateImage(self):
         # Koala
@@ -300,9 +296,23 @@ class ContourDetector():
         cd = ContourDetector(numpy.int32([[[0, 0]], [[0, 900]], [[1200, 900]], [[1200, 0]]]), None)
         cd.processFrame(image)
         cd.checkForChange(image)
+        cd.checkForChange(image)
+        cd.checkForChange(image)
+        cd.checkForChange(image)
+        cd.checkForChange(image)
+        cd.checkForChange(image)
+        cd.checkForChange(image)
+        cd.checkForChange(image)
+        cd.checkForChange(image)
+        cd.checkForChange(image)
+        cd.checkForChange(image)
+        cd.checkForChange(image)
+        cd.checkForChange(image)
+        cd.checkForChange(image)
+        cd.checkForChange(image)
 
         # cv2.imshow("", cd.foregroundMask)
-        cv2.imshow("2", cd.interpolateImage())
+        # cv2.imshow("2", cd.interpolateImage())
         cv2.imshow("Big Mask", cv2.bitwise_and(cd.foregroundMask, cd.backgroundMask))
         cv2.waitKey(0)
         cv2.destroyAllWindows()

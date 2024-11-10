@@ -3,9 +3,6 @@ import numpy
 from consts import Consts
 from screeninfo import get_monitors
 
-from windows import ProjectorWindow, UserWindow
-from PyQt5 import QtWidgets
-
 class ContourDetector():
     # Constants
     differenceThresh = 5
@@ -145,7 +142,7 @@ class ContourDetector():
 
     def interpolateImage(self):
         # Koala
-        projection = cv2.imread(Consts.CALIBRATION_IMAGES[3])
+        projection = cv2.imread(Consts.CALIBRATION_IMAGES[0])
         
         # Assemble the full mask. Known background is in white on backgroundMask, known foreground is in black on foregroundMask
         mask = cv2.bitwise_and(self.backgroundMask, self.foregroundMask)

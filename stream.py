@@ -117,5 +117,3 @@ if __name__ == "__main__":
 
     # Run Qt, exits after picture taken
     sys.exit(app.exec_())
-
-

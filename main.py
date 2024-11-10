@@ -5,7 +5,8 @@ from contours import ContourDetector
 from screeninfo import get_monitors
 from consts import Consts
 from PyQt5 import QtWidgets
-from windows import ProjectorStream, ProjectorWindow, UserWindow
+from stream import ProjectorStream
+from windowProjector import ProjectorWindow
 from camera import Camera
 import multiprocessing as mp
 from queue import Empty

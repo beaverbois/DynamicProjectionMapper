@@ -52,12 +52,12 @@ class ContourDetector():
 
     # Call every frame
     def maskImage(self, depth):
-        # Mask all objects that are closer than the threshold
+        # Mask all objects that are closer than a threshold
         gray = cv2.cvtColor(self.project, cv2.COLOR_BGR2GRAY)
-        depthTransform = cv2.warpPerspective(depth, numpy.linalg.inv(self.homography), (gray.shape[1], gray.shape[0]))
-        wall = numpy.bitwise_and(depthTransform, depthTransform, cv2.cvtColor(self.backgroundMask, cv2.COLOR_BGR2GRAY))
-        wallThresh = numpy.mean(wall) * self.threshScale
-        _, wallMask = cv2.threshold(wall, wallThresh, 255, cv2.THRESH_BINARY)
+        depthTransform = cv2.warpPerspective(depth, numpy.linalg.inv(self.homography), (gray.shape[1], gray.shape[0])) # Might(?) need a different shape
+        wall = numpy.bitwise_and(depthTransform, depthTransform, cv2.cvtColor(self.backgroundMask, cv2.COLOR_BGR2GRAY)) # Need to ensure types work
+        wallThresh = numpy.mean(wall[wall > 0.1]) * self.threshScale # Not sure if this is 100% right
+        _, wallMask = cv2.threshold(depthTransform, wallThresh, 255, cv2.THRESH_BINARY) # Might want to use wall here
 
         maskedImage = cv2.bitwise_and(self.project, self.project, mask=wallMask)
         return maskedImage

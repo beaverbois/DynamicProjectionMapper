@@ -7,7 +7,7 @@ from PyQt5 import QtWidgets
 
 class ContourDetector():
     # Constants
-    differenceThresh = 20
+    differenceThresh = 50
     updateFreq = 20
 
     # Counter for tracking number of times a new frame is sent in
@@ -46,39 +46,41 @@ class ContourDetector():
 
     def processFrame(self, img):
         # Convert the image to HSV
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         if len(self.foregroundMask) == 0:
             self.foregroundMask = numpy.full_like(img, (255, 255, 255), dtype=numpy.uint8)
             self.foregroundMask = cv2.cvtColor(self.foregroundMask, cv2.COLOR_BGR2GRAY)
 
         # Find the distance between the expected projection and what we see
-        else:
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            proj = cv2.drawContours(gray, [self.dst], -1, 255, thickness=cv2.FILLED)
-            tmp = numpy.full_like(gray, 255, dtype=numpy.uint8)
-            mask = cv2.bitwise_not(tmp, proj)
-            gray[mask==255] = mask[mask==255]
-            transform = cv2.warpPerspective(gray, numpy.linalg.inv(self.homography), (self.yDist, self.xDist))
-            avr = numpy.mean(numpy.abs(cv2.subtract(transform.astype(numpy.int16), self.last.astype(numpy.int16))))
-            if avr < self.differenceThresh:
-                return
+        # else:
+        #     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        #     proj = cv2.drawContours(gray, [self.dst], -1, 255, thickness=cv2.FILLED)
+        #     tmp = numpy.full_like(gray, 255, dtype=numpy.uint8)
+        #     mask = cv2.bitwise_not(tmp, proj)
+        #     gray[mask==255] = mask[mask==255]
+        #     transform = cv2.warpPerspective(gray, numpy.linalg.inv(self.homography), (self.last.shape[1], self.last.shape[0]))
+        #     avr = numpy.mean(numpy.abs(cv2.subtract(transform.astype(numpy.int16), self.last.astype(numpy.int16))))
+        #     if avr < self.differenceThresh:
+        #         return
 
         # Apply GaussianBlur to reduce noise and improve edge detection
-        blurred = cv2.GaussianBlur(gray, (3, 3), 0)
+        blurred = cv2.GaussianBlur(hsv, (3, 3), 0)
 
         # Perform Canny edge detection
-        edges = cv2.Canny(blurred, threshold1=100, threshold2=200, apertureSize=3)
+        edges = cv2.Canny(blurred, threshold1=50, threshold2=200, apertureSize=3)
 
         # Dilate and erode
         k1 = numpy.ones((1, 1), numpy.uint8)
         kernel = numpy.ones((3, 3), numpy.uint8)
         edges = cv2.morphologyEx(edges, cv2.MORPH_ERODE, k1, iterations=1)
-        edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, kernel, iterations=5)
+        edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, kernel, iterations=3)
         
         # Draw in known bounds for contour identification: screen and edge of image
-        edges = cv2.drawContours(edges, [self.dst], -1, (255, 255, 255), 10)
-        edges = cv2.rectangle(edges, (0, 0), (edges.shape[1], edges.shape[0]), (255, 255, 255), 10)
+        edges = cv2.drawContours(edges, [self.dst], -1, (255, 255, 255), 5)
+        edges = cv2.rectangle(edges, (0, 0), (edges.shape[1], edges.shape[0]), (255, 255, 255), 5)
+
+        cv2.imshow("Edges", edges)
 
         # Find contours from edges
         contours, hierarchy = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -96,13 +98,15 @@ class ContourDetector():
             perimeter = cv2.arcLength(contour, True)
             epsilon = 0.05 * perimeter  # 0.05 did best in testing, 0.02 was minimum effective
             approx_polygon = cv2.approxPolyDP(contour, epsilon, True)
-            edges = cv2.drawContours(edges, [approx_polygon], -1, (255, 255, 255), 10)
+            edges = cv2.drawContours(edges, [approx_polygon], -1, (255, 255, 255), 5)
 
             # # Poly lines approach
             # pts = contour.reshape((-1, 1, 2))
             # edges = cv2.polylines(edges, [pts], True, (255, 255, 255), 10)
         
-        # edges = cv2.drawContours(edges, [self.dst], -1, (255, 255, 255), 10)
+        # edges = cv2.drawContours(edges, [self.dst], -1, (255, 255, 255), 10
+
+        cv2.imshow("Contours", edges)
 
         # Find contours a second time, using other bounding boxes to help close gaps and increase accuracy
         contours, hierarchy = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -122,6 +126,10 @@ class ContourDetector():
         # Finally, create the mask by drawing the screen contour in white over a black mat. Save in self.backgroundMask
         contour_image = numpy.zeros_like(edges, dtype=numpy.uint8)
         cv2.drawContours(contour_image, [maxContour], -1, (255, 255, 255), cv2.FILLED)
+
+        cv2.imshow("c", contour_image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
         self.backgroundMask = contour_image
 
@@ -150,7 +158,7 @@ class ContourDetector():
         # fg_mask = cv2.bitwise_not(fg_mask, all)
 
         # # Save in self.foregroundMask
-        gray = cv2.cvtColor(self.foregroundMask, cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         self.foregroundMask = numpy.full_like(gray, 255, dtype=numpy.uint8)
         face_cor = self.model.detectMultiScale(frame)
@@ -159,7 +167,7 @@ class ContourDetector():
                 tmp = numpy.full_like(gray, 255, dtype=numpy.uint8)
                 x, y, w, h = face
                 x2, y2 = x+w, y+h
-                tmp = cv2.rectangle(tmp, (x, max(0, y-h//2)), (x2, y2), 0, cv2.FILLED)
+                tmp = cv2.rectangle(tmp, (max(0, x-w//2), max(0, y-h//2)), (min(tmp.shape[1], x2+w//2), min(tmp.shape[0], y2+h//2)), 0, cv2.FILLED)
                 # tmp = cv2.ellipse(tmp, (x+w/2, y+h/2), (w/2,h/2), 0, 0, 0, color=0, thickness=cv2.FILLED)
                 self.foregroundMask = cv2.bitwise_and(tmp, self.foregroundMask)
 
@@ -190,6 +198,8 @@ class ContourDetector():
         # Assemble the full mask. Known background is in white on backgroundMask, known foreground is in black on foregroundMask
         mask = cv2.bitwise_and(self.backgroundMask, self.foregroundMask)
 
+        cv2.imshow("m", mask)
+
         # Use the homography matrix to map each part of the mask to the equivalent part on the projection
         mask_transform = cv2.warpPerspective(mask, numpy.linalg.inv(self.homography), (projection.shape[1], projection.shape[0]))
 
@@ -204,7 +214,7 @@ class ContourDetector():
         # Map the region of the projection we want to itself, leaving the rest as black
         contour_region = cv2.bitwise_and(projection, projection, mask=mask_transform)
 
-        self.last = contour_region
+        self.last = cv2.cvtColor(contour_region, cv2.COLOR_BGR2GRAY)
 
         # Finally, return our fully-transformed, masked projection!
         return contour_region

@@ -68,8 +68,9 @@ class Kinect:
         (undistorted, registered, big) = self.registration.apply(rgbFrame=rgbFrame, depthFrame=depthFrame)
 
         depth_frame = big.getDepthData()
-        print(depth_frame)
-        rgb_frame = cv2.flip(np.array(rgbFrame.getRGBData()[:, :, :3], dtype=np.uint16), 1)
+        depth_frame = cv2.flip(depth_frame, 0)
+        # print(depth_frame)
+        rgb_frame = cv2.flip(np.array(rgbFrame.getRGBData()[:, :, :3], dtype=np.uint16), 0)
         rgb_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR)
 
         self.frameListener.release(frames)

@@ -14,7 +14,7 @@ class ContourDetector():
     # # Counter for tracking number of times a new frame is sent in
     # numUpdates = 0
 
-    threshScale = 0.90
+    threshScale = 0.95
 
     def __init__(self, dst, homography):
         # Get values from dst
@@ -53,15 +53,26 @@ class ContourDetector():
     # Call every frame
     def maskImage(self, depth: numpy.array):
         # Mask all objects that are closer than a threshold
+        depth = depth[:-2]
+        depth[depth == float('inf')] = 0
+        depth[depth > 2000] = 0
+        depth[depth < 10] = 0
         gray = cv2.cvtColor(self.project, cv2.COLOR_BGR2GRAY)
-        wall = numpy.bitwise_and(depth, depth, self.backgroundMask)
+        wall = numpy.bitwise_and(depth.astype(numpy.uint16), depth.astype(numpy.uint16), self.backgroundMask)
         wallTransform = cv2.warpPerspective(wall.astype(numpy.uint16), numpy.linalg.inv(self.homography), (gray.shape[1], gray.shape[0])) # Might(?) need a different shape
-        threshArr = wallTransform[wallTransform > 0.1]
-        threshArr = threshArr[wallTransform < numpy.inf]
-        wallThresh = numpy.mean(threshArr) * self.threshScale # Not sure if this is 100% right
-        _, wallMask = cv2.threshold(wallTransform, wallThresh, 255, cv2.THRESH_BINARY) # Might want to use wall here
+        _, threshArr = cv2.threshold(wallTransform, 1, 2000, cv2.THRESH_BINARY_INV)
+        # threshArr = threshArr[wallTransform < numpy.inf]
+        #threshArr = threshArr[wallTransform < 2000]
 
-        maskedImage = cv2.bitwise_and(self.project, self.project, mask=wallMask)
+        #wallThresh = numpy.mean(threshArr) * self.threshScale # Not sure if this is 100% right
+        #, wallMask = cv2.threshold(wallTransform, wallThresh, 255, cv2.THRESH_BINARY) # Might want to use wall here
+
+        maskedImage = cv2.bitwise_and(self.project, self.project, mask=threshArr.astype(numpy.uint8))
+
+        kernel = numpy.ones((3, 3), numpy.uint8)
+        maskedImage = cv2.morphologyEx(maskedImage, cv2.MORPH_DILATE, kernel, 1)
+        # maskedImage = cv2.GaussianBlur(maskedImage, (3, 3), 0)
+
         return maskedImage
 
     def updateProjection(self, image):

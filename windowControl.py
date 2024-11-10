@@ -10,9 +10,10 @@ from consts import Consts
 from dalle import DallE
 
 class WindowControl(Window):
-    def __init__(self):
+    def __init__(self, queue1, queue2):
         super().__init__(Consts.CONTROL_WINDOW_NAME)
-
+        self.queue1 = queue1
+        self.queue2 = queue2
         self.createUI()
 
     def createUI(self):
@@ -90,6 +91,37 @@ class WindowControl(Window):
         calibrateButton.setStyleSheet("font-size: 14px; padding: 8px;")
         calibrateButton.clicked.connect(self.calibrateHomography)
         buttonsBox.addWidget(calibrateButton)
+
+    def display_frame1(self):
+
+        image = self.queue1.get()
+            
+        # convert OpenCV image to QImage for PyQt
+        height, width, channel = image.shape
+        bytesPerLine = channel * width
+        q_image = QtGui.QImage(image.data, width, height, bytesPerLine, QtGui.QImage.Format_RGB888)
+        
+        # display QImage in the label
+        pixmap = QtGui.QPixmap.fromImage(q_image)
+        self.label.setPixmap(pixmap)
+        self.update()
+
+        self.queue.task_done()
+    
+    def display_frame2(self):
+        image = self.queue2.get()
+            
+        # convert OpenCV image to QImage for PyQt
+        height, width, channel = image.shape
+        bytesPerLine = channel * width
+        q_image = QtGui.QImage(image.data, width, height, bytesPerLine, QtGui.QImage.Format_RGB888)
+        
+        # display QImage in the label
+        pixmap = QtGui.QPixmap.fromImage(q_image)
+        self.label.setPixmap(pixmap)
+        self.update()
+
+        self.queue.task_done()
 
 
     def setImage1(self, img):

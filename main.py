@@ -11,6 +11,7 @@ from camera import Camera, Kinect
 import multiprocessing as mp
 from queue import Empty
 import os
+from windowControl import WindowControl
 
 import time
 from progressbar import progressbar
@@ -177,16 +178,18 @@ def videoPlayer(queue):
     app.exec_()
     print("Player started")
 
-def frameCreator(queue, cd, cam):
+def frameCreator(queue, cd, cam, q1, q2):
     # camera = Camera()
     print("frameCreator started")
     t0 = time.time()
-    for i in range(200):
+    for i in range(20000):
         frame, depth = cam.getFrame()
+        q2.put(frame)
         # cd.processFrame(frame)
         # image = cd.interpolateImage()
         image = cd.maskImage(depth)
         queue.put(image)
+        q1.put(image)
 
         # images = ['images/pattern1.png', 'images/pattern2.png', 'images/pattern3.png']
         # # for i in range(120):
@@ -198,10 +201,21 @@ def frameCreator(queue, cd, cam):
     queue.close()
     print("frameCreator Done!")
 
+def uiProcess(q1, q2):
+    app = QtWidgets.QApplication(sys.argv)
+    ui = WindowControl(q1, q2)
+    ui.show()
+    sys.exit(app.exec_())
+
 
 def main():
     assert len(get_monitors()) > 1 # throws if no projector connected
-    cd = calibrate(0)
+
+    q1, q2 = mp.Queue(), mp.Queue()
+    uiprocess = mp.Process(target=uiProcess, args=(q1,q2))
+    uiprocess.start()
+
+    cd = calibrate(2)
     cam = Kinect()
 
     print("calibrate done!")
@@ -210,7 +224,7 @@ def main():
     player = mp.Process(target=videoPlayer, args=(queue,))
     player.start()
 
-    frameCreator(queue, cd, cam)
+    frameCreator(queue, cd, cam, q1, q2)
 
     player.join()
     print("joined?")

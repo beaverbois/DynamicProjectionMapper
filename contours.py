@@ -31,15 +31,14 @@ class ContourDetector():
         self.dstMaxX = dst[0][0][0]
         self.dstMaxY = dst[0][0][1]
 
-
         for i in range(len(dst)):
-            dstMinX = min(dstMinX, dst[i][0][0])
-            dstMaxX = max(dstMaxX, dst[i][0][0])
-            dstMinY = min(dstMinY, dst[i][0][1])
-            dstMaxY = max(dstMaxY, dst[i][0][1])
+            self.dstMinX = min(self.dstMinX, dst[i][0][0])
+            self.dstMaxX = max(self.dstMaxX, dst[i][0][0])
+            self.dstMinY = min(self.dstMinY, dst[i][0][1])
+            self.dstMaxY = max(self.dstMaxY, dst[i][0][1])
 
-        self.xDist = dstMaxX - dstMinX
-        self.yDist = dstMaxY - dstMinY
+        self.xDist = self.dstMaxX - self.dstMinX
+        self.yDist = self.dstMaxY - self.dstMinY
         self.dst = dst
 
         self.numChangedPix *= self.xDist * self.yDist
@@ -48,12 +47,12 @@ class ContourDetector():
         self.backgroundSubtractor = cv2.createBackgroundSubtractorMOG2(detectShadows=True)
 
     def processFrame(self, img):
+        # Convert the image to HSV
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
         if self.foregroundMask == None:
             self.foregroundMask = numpy.zeros_like(img, dtype=numpy.uint8)
             self.foregroundMask = cv2.cvtColor(self.foregroundMask, cv2.COLOR_BGR2GRAY)
-        # Convert the image to grayscale
-
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         self.last = gray
 
@@ -70,7 +69,7 @@ class ContourDetector():
 
         # Show the original and edge-detected images
         # cv2.imshow('Original Image', img)
-        # cv2.imshow('Canny Edge Detection', edges)
+        cv2.imshow('Canny Edge Detection', edges)
 
         # Find contours from the edges image
         contours, hierarchy = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -104,11 +103,12 @@ class ContourDetector():
         edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, (9, 9), iterations=19)
         
         edges = cv2.drawContours(edges, [self.dst], -1, (255, 255, 255), 10)
+        edges = cv2.rectangle(edges, (0, 0), (edges.shape[0], edges.shape[1]), (255, 255, 255), 5)
 
         # cv2.drawContours(contour_image, contours, -1, (255, 255, 255), 2)
-        # cv2.imshow("Round 1", edges)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
+        cv2.imshow("Round 1", edges)
+        cv2.waitKey(0)  
+        cv2.destroyAllWindows()
 
         contours, hierarchy = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -188,9 +188,14 @@ class ContourDetector():
     def interpolateImage(self, homography):
         # Koala
         projection = cv2.imread("images/pattern1.png")
-
-        self.mask = cv2.bitwise_or(self.backgroundMask, self.foregroundMask)
+        print(self.backgroundMask.shape)
+        print(self.foregroundMask.shape)
         
+        self.mask = cv2.bitwise_and(self.backgroundMask, self.foregroundMask)
+        cv2.imshow("", self.backgroundMask)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
         # mask = numpy.zeros_like(projection, dtype=numpy.uint8)  # Create a blank mask
         # cv2.fillPoly(mask, [contour], (255))  # Fill the largest contour in the mask
 

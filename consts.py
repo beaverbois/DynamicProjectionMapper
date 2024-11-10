@@ -9,5 +9,6 @@ class Consts:
     HOMOGRAPHY_IMAGE_PATH = 'images/out/homography.jpg'
     CAMERA_WIDTH = 1920
     CAMERA_HEIGHT = 1080
-    CALIBRATION_IMAGES = ['images/calib/3.png', 'images/calib/2.png', 'images/calib/3.png', 'images/calib/4.png']
-    TEXTURE_IMAGES = 'images/textures'
+    CALIBRATION_IMAGES = ['images/calib/1.png', 'images/calib/2.png', 'images/calib/3.png']
+    TEXTURES_PATH = 'images/textures'
+    LOADING_GIF = 'images/loading.gif'

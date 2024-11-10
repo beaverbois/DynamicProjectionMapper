@@ -55,7 +55,8 @@ class WindowControl(Window):
         image2Box.addWidget(self.image2Text)
 
         button = QPushButton("Calibrate Homography")
-        button.setStyleSheet("font-size: 14px; padding: 8px;")  # Optional styling for the button
+        button.setStyleSheet("font-size: 14px; padding: 8px;")
+        button.addAction(self.calibrateHomography)
         image2Box.addWidget(button)
 
     def setImage1(self, img):
@@ -65,6 +66,9 @@ class WindowControl(Window):
     def setImage2(self, img):
         scaled_pixmap = self.imgToPixmap(img).scaled(self.image_width, self.image_height, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self.image2.setPixmap(scaled_pixmap)
+
+    def calibrateHomography():
+        print('hi')
 
 app = QtWidgets.QApplication(sys.argv)
 window = WindowControl()

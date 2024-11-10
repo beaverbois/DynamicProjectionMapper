@@ -151,7 +151,7 @@ class ContourDetector():
         mask = cv2.bitwise_and(self.backgroundMask, self.foregroundMask)
 
         # Use the homography matrix to map each part of the mask to the equivalent part on the projection
-        # mask_transform = cv2.warpPerspective(mask, numpy.linalg.inv(self.homography), (projection.shape[1], projection.shape[0]))
+        mask_transform = cv2.warpPerspective(mask, numpy.linalg.inv(self.homography), (projection.shape[1], projection.shape[0]))
 
         # # Get the edges of the mask, can use to outline each foreground object
         # outlineMat = cv2.Canny(mask, threshold1=100, threshold2=200)
@@ -161,11 +161,11 @@ class ContourDetector():
         # tmp = numpy.full_like(outlineMat, 100, dtype=numpy.uint8)
         # tmp[outlineMat == 255] = outlineMat[outlineMat == 255]
 
-        # # Map the region of the projection we want to itself, leaving the rest as black
-        # contour_region = cv2.bitwise_and(projection, projection, mask=mask_transform)
+        # Map the region of the projection we want to itself, leaving the rest as black
+        contour_region = cv2.bitwise_and(projection, projection, mask=mask_transform)
 
-        # # Finally, return our fully-transformed, masked projection!
-        # return contour_region
+        # Finally, return our fully-transformed, masked projection!
+        return contour_region
 
     def test():
         image = cv2.imread("images/test.jpg", cv2.IMREAD_UNCHANGED)
@@ -192,7 +192,6 @@ class ContourDetector():
         cd.checkForChange(image)
         cd.checkForChange(image)
         cd.checkForChange(image)
-        cd.interpolateImage()
 
         # cv2.imshow("", cd.foregroundMask)
         cv2.imshow("Big Mask", cv2.bitwise_and(cd.foregroundMask, cd.backgroundMask))

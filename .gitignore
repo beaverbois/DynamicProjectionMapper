@@ -3,3 +3,4 @@ calibration
 __pycache__
 .venv
 images/out
+API_key.txt

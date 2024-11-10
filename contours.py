@@ -1,5 +1,6 @@
 import cv2
 import numpy
+import dalle
 from consts import Consts
 from screeninfo import get_monitors
 
@@ -42,9 +43,28 @@ class ContourDetector():
         # self.model = torchvision.models.segmentation.deeplabv3_resnet101(pretrained=True)
         # self.model.eval()
 
-        self.model = cv2.CascadeClassifier("images/calib/haarcascade_frontalface_default.xml")
+        # self.model = cv2.CascadeClassifier("images/calib/haarcascade_frontalface_default.xml")
 
-        self.project = cv2.cvtColor(cv2.imread(Consts.CALIBRATION_IMAGES[0]), cv2.COLOR_BGR2GRAY)
+        image = cv2.imread("images/textures/taco.jpg")
+        self.updateProjection(image)
+
+    def updateProjection(self, image):
+        # Get the dimensions of the original image
+        img_height, img_width, _ = image.shape
+
+        # Calculate how many tiles are needed in each dimension
+        horizontal_tiles = (1920 // img_width) + 1  # +1 to ensure full coverage
+        vertical_tiles = (1080 // img_height) + 1  # +1 to ensure full coverage
+
+        # Create a larger image by repeating the original image
+        # Tile the image horizontally and vertically
+        tiled_image = numpy.tile(image, (vertical_tiles, horizontal_tiles, 1))
+        tiled_image = cv2.resize(tiled_image, (1920, 1080))
+
+        # Crop the image to the exact target size
+        tiled_image = tiled_image[:1080, :1920]
+
+        self.project = tiled_image
 
     def thresholdFrame(self, img):
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -93,7 +113,7 @@ class ContourDetector():
         edges = cv2.drawContours(edges, [self.dst], -1, (255, 255, 255), 5)
         edges = cv2.rectangle(edges, (0, 0), (edges.shape[1], edges.shape[0]), (255, 255, 255), 5)
 
-        cv2.imshow("Edges", edges)
+        # cv2.imshow("Edges", edges)
 
         # Find contours from edges
         contours, hierarchy = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -119,7 +139,7 @@ class ContourDetector():
         
         # edges = cv2.drawContours(edges, [self.dst], -1, (255, 255, 255), 10
 
-        cv2.imshow("Contours", edges)
+        # cv2.imshow("Contours", edges)
 
         # Find contours a second time, using other bounding boxes to help close gaps and increase accuracy
         contours, hierarchy = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -140,9 +160,9 @@ class ContourDetector():
         contour_image = numpy.zeros_like(edges, dtype=numpy.uint8)
         cv2.drawContours(contour_image, [maxContour], -1, (255, 255, 255), cv2.FILLED)
 
-        cv2.imshow("c", contour_image)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        # cv2.imshow("c", contour_image)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
 
         self.backgroundMask = contour_image
 
@@ -159,35 +179,37 @@ class ContourDetector():
 
     def __updateMask(self, frame):
         # Get the foreground mask, update model
-        # fg_mask = self.backgroundSubtractor.apply(frame)
+        fg_mask = self.backgroundSubtractor.apply(frame)
 
-        # # Morphology for noise cleaning
-        # kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-        # fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_CLOSE, kernel)
-        # fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, kernel)
+        # Morphology for noise cleaning
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_CLOSE, kernel)
+        fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, kernel)
 
-        # # Invert mask: anything white is set to black, anything else is set to white
-        # all = numpy.full_like(frame, (255, 255, 255), dtype=numpy.uint8)
-        # fg_mask = cv2.bitwise_not(fg_mask, all)
+        # Invert mask: anything white is set to black, anything else is set to white
+        all = numpy.full_like(frame, (255, 255, 255), dtype=numpy.uint8)
+        fg_mask = cv2.bitwise_not(fg_mask, all)
 
-        # # Save in self.foregroundMask
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        self.foregroundMask = fg_mask
 
-        self.foregroundMask = numpy.full_like(gray, 255, dtype=numpy.uint8)
-        face_cor = self.model.detectMultiScale(frame)
-        if len(face_cor) != 0:
-            for face in face_cor:
-                tmp = numpy.full_like(gray, 255, dtype=numpy.uint8)
-                x, y, w, h = face
-                x2, y2 = x+w, y+h
-                tmp = cv2.rectangle(tmp, (max(0, x-w//2), max(0, y-h//2)), (min(tmp.shape[1], x2+w//2), min(tmp.shape[0], y2+h//2)), 0, cv2.FILLED)
-                # tmp = cv2.ellipse(tmp, (x+w/2, y+h/2), (w/2,h/2), 0, 0, 0, color=0, thickness=cv2.FILLED)
-                self.foregroundMask = cv2.bitwise_and(tmp, self.foregroundMask)
+        # # # Save in self.foregroundMask
+        # gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-        self.last = frame
+        # self.foregroundMask = numpy.full_like(gray, 255, dtype=numpy.uint8)
+        # face_cor = self.model.detectMultiScale(frame)
+        # if len(face_cor) != 0:
+        #     for face in face_cor:
+        #         tmp = numpy.full_like(gray, 255, dtype=numpy.uint8)
+        #         x, y, w, h = face
+        #         x2, y2 = x+w, y+h
+        #         tmp = cv2.rectangle(tmp, (max(0, x-w//2), max(0, y-h//2)), (min(tmp.shape[1], x2+w//2), min(tmp.shape[0], y2+h//2)), 0, cv2.FILLED)
+        #         # tmp = cv2.ellipse(tmp, (x+w/2, y+h/2), (w/2,h/2), 0, 0, 0, color=0, thickness=cv2.FILLED)
+        #         self.foregroundMask = cv2.bitwise_and(tmp, self.foregroundMask)
+
+        # self.last = frame
 
     def checkForChange(self, frame: cv2.Mat):
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        # gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         # Update backgroundMask (and foregroundMask) at a set interval
         # self.numUpdates += 1
@@ -206,7 +228,7 @@ class ContourDetector():
 
     def interpolateImage(self):
         # Koala
-        projection = cv2.imread(Consts.CALIBRATION_IMAGES[0])
+        # projection = cv2.imread(Consts.CALIBRATION_IMAGES[0])
         
         # Assemble the full mask. Known background is in white on backgroundMask, known foreground is in black on foregroundMask
         mask = cv2.bitwise_and(self.backgroundMask, self.foregroundMask)
@@ -214,7 +236,7 @@ class ContourDetector():
         cv2.imshow("m", mask)
 
         # Use the homography matrix to map each part of the mask to the equivalent part on the projection
-        mask_transform = cv2.warpPerspective(mask, numpy.linalg.inv(self.homography), (projection.shape[1], projection.shape[0]))
+        mask_transform = cv2.warpPerspective(mask, numpy.linalg.inv(self.homography), (self.project.shape[1], self.project.shape[0]))
 
         # # Get the edges of the mask, can use to outline each foreground object
         # outlineMat = cv2.Canny(mask, threshold1=100, threshold2=200)
@@ -239,23 +261,25 @@ class ContourDetector():
         image = cv2.resize(image, (screen.width, screen.height))
 
         cd = ContourDetector(numpy.int32([[[0, 0]], [[0, 900]], [[1200, 900]], [[1200, 0]]]), None)
+        cv2.imshow("Img", cd.project)
         cd.processFrame(image)
-        cd.processFrame(image)
-        cd.checkForChange(image)
-        cd.checkForChange(image)
-        cd.checkForChange(image)
-        cd.checkForChange(image)
-        cd.checkForChange(image)
-        cd.checkForChange(image)
-        cd.checkForChange(image)
-        cd.checkForChange(image)
-        cd.checkForChange(image)
-        cd.checkForChange(image)
-        cd.checkForChange(image)
-        cd.checkForChange(image)
-        cd.checkForChange(image)
-        cd.checkForChange(image)
-        cd.checkForChange(image)
+        # cd.processFrame(image)
+        # cd.checkForChange(image)
+        # cd.checkForChange(image)
+        # cd.checkForChange(image)
+        # cd.checkForChange(image)
+        # cd.checkForChange(image)
+        # cd.checkForChange(image)
+        # cd.checkForChange(image)
+        # cd.checkForChange(image)
+        # cd.checkForChange(image)
+        # cd.checkForChange(image)
+        # cd.checkForChange(image)
+        # cd.checkForChange(image)
+        # cd.checkForChange(image)
+        # cd.checkForChange(image)
+        # cd.checkForChange(image)
+        # cd.thresholdFrame(image)
 
         # cv2.imshow("", cd.foregroundMask)
         cv2.imshow("Big Mask", cv2.bitwise_and(cd.foregroundMask, cd.backgroundMask))

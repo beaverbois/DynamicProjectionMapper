@@ -140,39 +140,42 @@ class ContourDetector():
         # fg_mask = cv2.bitwise_not(fg_mask, all)
 
         # # Save in self.foregroundMask
-        self.foregroundMask = numpy.full_like(frame, (255, 255, 255), dtype=numpy.uint8)
+        # gray = cv2.cvtColor(self.foregroundMask, cv2.COLOR_BGR2GRAY)
+
+        self.foregroundMask = numpy.full_like(frame, 255, dtype=numpy.uint8)
         face_cor = self.model.detectMultiScale(frame)
         if len(face_cor) != 0:
             for face in face_cor:
-                tmp = numpy.full_like(frame, (255, 255, 255), dtype=numpy.uint8)
+                tmp = numpy.full_like(frame, 255, dtype=numpy.uint8)
                 x, y, w, h = face
                 x2, y2 = x+w, y+h
-                tmp = cv2.rectangle(tmp, (x, y), (x2, y2), (0, 0, 0), cv2.FILLED)
+                tmp = cv2.rectangle(tmp, (x, y), (x2, y2), 0, cv2.FILLED)
                 self.foregroundMask = cv2.bitwise_and(tmp, self.foregroundMask)
 
+        self.last = frame
 
     def checkForChange(self, frame: cv2.Mat):
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         # Update backgroundMask (and foregroundMask) at a set interval
-        self.numUpdates += 1
-        if self.numUpdates >= self.updateFreq:
-            self.numUpdates = 0
-            # self.processFrame(frame)
-            self.__updateMask(frame)
-            return
+        # self.numUpdates += 1
+        # if self.numUpdates >= self.updateFreq:
+        #     self.numUpdates = 0
+        #     # self.processFrame(frame)
+        #     self.__updateMask(frame)
+        #     return
         
         # Check for enough change to know there was movement. If so, update the foreground mask
         avr = numpy.mean(numpy.abs(cv2.subtract(gray.astype(numpy.int16), self.last.astype(numpy.int16))))
         if avr > self.differenceThresh:
-            self.__updateMask(frame)
+            self.__updateMask(gray)
 
     def interpolateImage(self):
         # Koala
         projection = cv2.imread(Consts.CALIBRATION_IMAGES[0])
         
         # Assemble the full mask. Known background is in white on backgroundMask, known foreground is in black on foregroundMask
-        mask = cv2.bitwise_and(self.backgroundMask, cv2.cvtColor(self.foregroundMask, cv2.COLOR_BGR2GRAY))
+        mask = cv2.bitwise_and(self.backgroundMask, self.foregroundMask)
 
         # Use the homography matrix to map each part of the mask to the equivalent part on the projection
         mask_transform = cv2.warpPerspective(mask, numpy.linalg.inv(self.homography), (projection.shape[1], projection.shape[0]))

@@ -26,7 +26,7 @@ class ProjectorStream(QtWidgets.QMainWindow):
 
         try:
             image = self.queue.get(True, 10)
-            print("frame recieved!")
+            print("---- frame recieved!")
             print(image.shape)
                
             # convert OpenCV image to QImage for PyQt
@@ -43,7 +43,7 @@ class ProjectorStream(QtWidgets.QMainWindow):
 
         except Empty:
             print("timed out.. exiting")
-            exit()
+            self.close()
 
 
 class ProjectorWindow(QtWidgets.QMainWindow):
@@ -56,6 +56,7 @@ class ProjectorWindow(QtWidgets.QMainWindow):
 
         # close app
         self.close()
+        print("dead")
 
     def __init__(self, image, monitorIndex = Consts.PROJECTOR_INDEX):
         super().__init__()

@@ -46,6 +46,8 @@ def calibrate(imgIndex: int):
         # Run Qt, exits after picture taken
         app.exec_()
 
+        time.sleep(1)
+
         # read image taken by Qt app
         frame = cv2.imread(Consts.CALIBRATION_IMAGE_PATH)
 
@@ -101,20 +103,23 @@ def calibrate(imgIndex: int):
         # write homography image
         cv2.imwrite(Consts.HOMOGRAPHY_IMAGE_PATH, homographyImg)
 
+
+        
+        # identify countours
+        cd = ContourDetector(np.int32(dst), homography)
+        cd.processFrame(frame)
+
         # # ---- BENCHMARK ----
+        # camera = Camera()
+        # frame = camera.getFrame()
         # t0 = time.time()
         # for i in progressbar(range(1000)):
-        #     cd = ContourDetector(frame, np.int32(dst))
-        #     cd.interpolateImage(homography)
+        #     cd.processFrame(frame)
+        #     cd.interpolateImage()
         # t1 = time.time()
 
         # print(f"time: {t1-t0}s | fps: {1000/(t1-t0)}")
         # # ---- BENCHMARK ----
-        
-        # identify countours
-        cd = ContourDetector(np.int32(dst), homography)
-        cd = ContourDetector(np.int32(dst), homography)
-        cd.processFrame(frame)
 
         return cd
 
@@ -159,15 +164,14 @@ def videoPlayer(queue):
 def frameCreator(queue, cd):
     camera = Camera()
     print("frameCreator started")
-    for i in range(1):
+    for i in range(30):
         frame = camera.getFrame()
         print("image taken")
-        # cd.checkForChange(frame)
-        print("checked")
+        cd.processFrame(frame)
         image = cd.interpolateImage()
         queue.put(image)
 
-        print("frame inserted")
+        print("---- frame inserted")
         # images = ['images/pattern1.png', 'images/pattern2.png', 'images/pattern3.png']
         # # for i in range(120):
         # image_path = images[i%3]

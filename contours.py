@@ -45,7 +45,7 @@ class ContourDetector():
 
         self.numChangedPix *= self.xDist * self.yDist
 
-        self.foregroundMask = None
+        self.foregroundMask = []
         self.backgroundSubtractor = cv2.createBackgroundSubtractorMOG2(detectShadows=True)
 
         self.homography = homography
@@ -54,7 +54,7 @@ class ContourDetector():
         # Convert the image to HSV
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
-        if self.foregroundMask == None:
+        if len(self.foregroundMask) == 0:
             self.foregroundMask = numpy.full_like(img, (255, 255, 255), dtype=numpy.uint8)
             self.foregroundMask = cv2.cvtColor(self.foregroundMask, cv2.COLOR_BGR2GRAY)
 
@@ -73,6 +73,7 @@ class ContourDetector():
         edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, kernel, iterations=5)
         
         edges = cv2.drawContours(edges, [self.dst], -1, (255, 255, 255), 10)
+        edges = cv2.rectangle(edges, (0, 0), (edges.shape[1], edges.shape[0]), (255, 255, 255), 10)
 
         # Show the original and edge-detected images
         # cv2.imshow('Original Image', img)

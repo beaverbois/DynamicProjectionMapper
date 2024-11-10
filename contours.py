@@ -7,7 +7,7 @@ from PyQt5 import QtWidgets
 
 class ContourDetector():
     # Constants
-    differenceThresh = 5
+    differenceThresh = 20
     updateFreq = 20
 
     # Counter for tracking number of times a new frame is sent in
@@ -51,8 +51,19 @@ class ContourDetector():
         if len(self.foregroundMask) == 0:
             self.foregroundMask = numpy.full_like(img, (255, 255, 255), dtype=numpy.uint8)
             self.foregroundMask = cv2.cvtColor(self.foregroundMask, cv2.COLOR_BGR2GRAY)
+            self.last = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        self.last = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        # Find the distance between the expected projection and what we see
+        else:
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            proj = cv2.drawContours(gray, [self.dst], -1, 255, thickness=cv2.FILLED)
+            tmp = numpy.full_like(gray, 255, dtype=numpy.uint8)
+            mask = cv2.bitwise_not(tmp, proj)
+            gray[mask==255] = mask[mask==255]
+            transform = cv2.warpPerspective(gray, numpy.linalg.inv(self.homography), (self.yDist, self.xDist))
+            avr = numpy.mean(numpy.abs(cv2.subtract(transform.astype(numpy.int16), self.last.astype(numpy.int16))))
+            if avr < self.differenceThresh:
+                return
 
         # Apply GaussianBlur to reduce noise and improve edge detection
         blurred = cv2.GaussianBlur(gray, (3, 3), 0)

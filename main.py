@@ -158,10 +158,15 @@ def videoPlayer(queue):
 def frameCreator(queue, cd):
     camera = Camera()
     print("frameCreator started")
-    for i in range(1000):
-        cd.checkForChange(camera.getFrame())
+    for i in range(1):
+        frame = camera.getFrame()
+        print("image taken")
+        # cd.checkForChange(frame)
+        print("checked")
         image = cd.interpolateImage()
         queue.put(image)
+
+        print("frame inserted")
         # images = ['images/pattern1.png', 'images/pattern2.png', 'images/pattern3.png']
         # # for i in range(120):
         # image_path = images[i%3]
@@ -169,7 +174,7 @@ def frameCreator(queue, cd):
         # queue.put(image)
         # time.sleep(0.1)
     queue.close()
-    print("Done!")
+    print("frameCreator Done!")
 
 
 def main():
@@ -179,9 +184,11 @@ def main():
     print("calibrate done!")
     queue = mp.JoinableQueue(5)
 
-    frameCreator(queue, cd)
     player = mp.Process(target=videoPlayer, args=(queue,))
     player.start()
+
+    frameCreator(queue, cd)
+
     player.join()
     print("joined?")
     queue.join()

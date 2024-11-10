@@ -23,11 +23,11 @@ class ProjectorStream(QtWidgets.QMainWindow):
         timer.start()
 
     def display_frame(self):
-        print("dsplay")
 
         try:
-            image = self.queue.get(True, 1)
-            print("frame!")
+            image = self.queue.get(True, 10)
+            print("frame recieved!")
+            print(image.shape)
                
             # convert OpenCV image to QImage for PyQt
             height, width, channel = image.shape

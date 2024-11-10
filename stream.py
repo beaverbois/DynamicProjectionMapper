@@ -2,7 +2,7 @@ from queue import Empty
 import cv2
 from PyQt5 import QtWidgets, QtGui, QtCore
 from consts import Consts
-from camera import Camera
+from camera import Camera, Kinect
 import sys
 
 class ProjectorStream(QtWidgets.QMainWindow):
@@ -47,8 +47,9 @@ class ProjectorStream(QtWidgets.QMainWindow):
 
 class ProjectorWindow(QtWidgets.QMainWindow):
     def captureImage(self):
-        cam = Camera()
-        frame = cam.getFrame()
+        # cam = Camera()
+        cam = Kinect()
+        frame, _ = cam.getFrame()
 
         # write to file
         cv2.imwrite(Consts.CALIBRATION_IMAGE_PATH, frame)

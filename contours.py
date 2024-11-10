@@ -1,33 +1,21 @@
 import cv2
 import numpy
-import cython
 from consts import Consts
 from screeninfo import get_monitors
 
 from windows import ProjectorWindow, UserWindow
 from PyQt5 import QtWidgets
-import sys
-import time
 
 class ContourDetector():
-    blurXMod = 0.005
-    blurYMod = 0.005
-    
-    dilateXMod = 0.02
-    dilateYMod = 0.01
-
-    differenceThresh = -1
-    numChangedPix = 0.001
-
-    numUpdates = 0
+    # Constants
+    differenceThresh = 5
     updateFreq = 20
+
+    # Counter for tracking number of times a new frame is sent in
+    numUpdates = 0
 
     def __init__(self, dst, homography):
         # Get values from dst
-
-        # print(dst)
-        # dst = numpy.array(dst)
-
         self.dstMinX = dst[0][0][0]
         self.dstMinY = dst[0][0][1]
         self.dstMaxX = dst[0][0][0]
@@ -43,11 +31,13 @@ class ContourDetector():
         self.yDist = self.dstMaxY - self.dstMinY
         self.dst = dst
 
-        self.numChangedPix *= self.xDist * self.yDist
-
+        # Initialize foreground mask to set after calibration
         self.foregroundMask = []
+
+        # Initialize foreground identifier
         self.backgroundSubtractor = cv2.createBackgroundSubtractorMOG2(detectShadows=True)
 
+        # Save homography matrix
         self.homography = homography
 
     def processFrame(self, img):
@@ -72,121 +62,83 @@ class ContourDetector():
         edges = cv2.morphologyEx(edges, cv2.MORPH_ERODE, k1, iterations=1)
         edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, kernel, iterations=5)
         
+        # Draw in known bounds for contour identification: screen and edge of image
         edges = cv2.drawContours(edges, [self.dst], -1, (255, 255, 255), 10)
         edges = cv2.rectangle(edges, (0, 0), (edges.shape[1], edges.shape[0]), (255, 255, 255), 10)
 
-        # Show the original and edge-detected images
-        # cv2.imshow('Original Image', img)
-        # cv2.imshow('Canny Edge Detection', edges)
-
-        # Find contours from the edges image
+        # Find contours from edges
         contours, hierarchy = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-        # Create a copy of the original image to draw the contours on
-        contour_image = numpy.zeros_like(edges, dtype=numpy.uint8)
-        # maxContour_image = image.copy()
-        # flooded_image = image.copy()
-
+        # Feed the contours found back into edges to close gaps in edge detection
         for contour in contours:
             # Get the bounding box of each contour
             x, y, w, h = cv2.boundingRect(contour)
 
+            # Ignore any contours that are too large to improve the edge detection
             if w * h > int((self.xDist * self.yDist) / 1.5):
                 continue
 
-            pts = contour.reshape((-1, 1, 2))
-
-            # cv2.rectangle(edges, (x, y), (x + w, y + h), (255, 255, 255), 2)
+            # Polygon bounding box approximation approach
             perimeter = cv2.arcLength(contour, True)
-        
-            # Set epsilon to 2% of the perimeter (you can adjust this for more/less simplification)
-            epsilon = 0.05 * perimeter  # This controls the approximation accuracy
-        
-            # Approximate the contour
+            epsilon = 0.05 * perimeter  # 0.05 did best in testing, 0.02 was minimum effective
             approx_polygon = cv2.approxPolyDP(contour, epsilon, True)
-
             edges = cv2.drawContours(edges, [approx_polygon], -1, (255, 255, 255), 10)
+
+            # # Poly lines approach
+            # pts = contour.reshape((-1, 1, 2))
             # edges = cv2.polylines(edges, [pts], True, (255, 255, 255), 10)
         
-        # # edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, kernel, iterations=19)
-        
-        edges = cv2.drawContours(edges, [self.dst], -1, (255, 255, 255), 10)
+        # edges = cv2.drawContours(edges, [self.dst], -1, (255, 255, 255), 10)
 
-        # cv2.drawContours(contour_image, contours, -1, (255, 255, 255), 2)
-        # cv2.imshow("Round 1", edges)
-        # cv2.waitKey(0)  
-        # cv2.destroyAllWindows()
-
+        # Find contours a second time, using other bounding boxes to help close gaps and increase accuracy
         contours, hierarchy = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-        # Loop through each contour
+        # Find the largest contour, which we know to be the screen 
         maxSize = 0
         maxContour = None
-        numContours = 0
         for contour in contours:
             # Get the bounding box of each contour
             x, y, w, h = cv2.boundingRect(contour)
 
+            # Filter out contours outside the projected image while taking the maximum-sized contour
             if w*h > maxSize and w*h < self.xDist * self.yDist and x > self.dstMinX and x+w < self.dstMaxX and y > self.dstMinY and y+h < self.dstMaxY:
                 maxSize = w*h
                 maxContour = contour
 
-            numContours += 1
-
-        # maxContour = max(contours, key=cv2.contourArea)
-        
-        #     # # cv2.floodFill(contour_image, None, (x - w/2, y - h/2), (255, 0, 0))
-
-        #     # M = cv2.moments(contour)
-        #     # if M["m00"] != 0:  # Avoid division by zero
-        #     #     cx = int(M["m10"] / M["m00"])
-        #     #     cy = int(M["m01"] / M["m00"])
-        #     # else:
-        #     #     cx, cy = contour[0][0]  # Fallback to the first point if the contour is degenerate
-
-        #     # # Flood fill the contour region starting from the center
-        #     # cv2.floodFill(flooded_image, None, (cx, cy), (255, 0, 0))
-        
-        #     
-
-        # x, y, w, h = cv2.boundingRect(maxContour)
-        
-        # Draw image
-        # cv2.drawContours(img, [maxContour], -1, (255, 255, 255), cv2.FILLED)
-        # cv2.imshow("Contour", img)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
-
+        # Finally, create the mask by drawing the screen contour in white over a black mat. Save in self.backgroundMask
+        contour_image = numpy.zeros_like(edges, dtype=numpy.uint8)
         cv2.drawContours(contour_image, [maxContour], -1, (255, 255, 255), cv2.FILLED)
 
-        # self.mask = cv2.cvtColor(contour_image, cv2.COLOR_BGR2GRAY)
         self.backgroundMask = contour_image
 
     def __updateMask(self, frame):
+        # Get the foreground mask, update model
         fg_mask = self.backgroundSubtractor.apply(frame)
 
-        # Optional: Perform morphological operations to clean up the mask (remove noise)
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))  # Define a kernel for morphological operation
-        fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_CLOSE, kernel)  # Close small holes in the foreground mask
-        fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, kernel)   # Remove small noise
+        # Morphology for noise cleaning
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_CLOSE, kernel)
+        fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, kernel)
 
+        # Invert mask: anything white is set to black, anything else is set to white
         all = numpy.full_like(frame, (255, 255, 255), dtype=numpy.uint8)
         fg_mask = cv2.bitwise_not(fg_mask, all)
 
-        # cv2.imshow("Please", fg_mask)
-
+        # Save in self.foregroundMask
         self.foregroundMask = fg_mask
 
     def checkForChange(self, frame: cv2.Mat):
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        # Update on a set interval
+
+        # Update backgroundMask (and foregroundMask) at a set interval
         self.numUpdates += 1
         if self.numUpdates >= self.updateFreq:
             self.numUpdates = 0
             self.processFrame(frame)
             self.__updateMask(frame)
             return
-        # Check for enough change to redo the mask
+        
+        # Check for enough change to know there was movement. If so, update the foreground mask
         avr = numpy.mean(numpy.abs(cv2.subtract(gray.astype(numpy.int16), self.last.astype(numpy.int16))))
         if avr > self.differenceThresh:
             self.__updateMask(frame)
@@ -195,97 +147,29 @@ class ContourDetector():
         # Koala
         projection = cv2.imread("images/pattern1.png")
         
-        self.mask = cv2.bitwise_and(self.backgroundMask, self.foregroundMask)
-        # cv2.imshow("", self.backgroundMask)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
+        # Assemble the full mask. Known background is in white on backgroundMask, known foreground is in black on foregroundMask
+        mask = cv2.bitwise_and(self.backgroundMask, self.foregroundMask)
 
-        # mask = numpy.zeros_like(projection, dtype=numpy.uint8)  # Create a blank mask
-        # cv2.fillPoly(mask, [contour], (255))  # Fill the largest contour in the mask
+        # Use the homography matrix to map each part of the mask to the equivalent part on the projection
+        # mask_transform = cv2.warpPerspective(mask, numpy.linalg.inv(self.homography), (projection.shape[1], projection.shape[0]))
 
-        # # Resize the target image to match the source image size (if necessary)
-        # target_resized = cv2.resize(projection, (projection.shape[0], projection.shape[1]))
+        # # Get the edges of the mask, can use to outline each foreground object
+        # outlineMat = cv2.Canny(mask, threshold1=100, threshold2=200)
+        # kernel = numpy.ones((3, 3), numpy.uint8)
+        # outlineMat = cv2.morphologyEx(outlineMat, cv2.MORPH_DILATE, kernel=kernel, iterations=3)
 
-        # Use the inverse homography matrix to project the mask onto the projection image
-        # Convert contour to homogeneous coordinates (x, y, 1)
-        # contour_homogeneous = numpy.hstack([contour.reshape(-1, 2), numpy.ones((contour.shape[0], 1))])
+        # tmp = numpy.full_like(outlineMat, 100, dtype=numpy.uint8)
+        # tmp[outlineMat == 255] = outlineMat[outlineMat == 255]
 
-        # # Apply the inverse homography to each point in the contour
-        # contour_transformed = []
+        # # Map the region of the projection we want to itself, leaving the rest as black
+        # contour_region = cv2.bitwise_and(projection, projection, mask=mask_transform)
 
-        # for point in contour_homogeneous:
-        #     # Apply inverse homography
-        #     transformed_point = numpy.dot(numpy.linalg.inv(homography), point.T)
-        #     transformed_point /= transformed_point[2]  # Normalize to make it homogeneous again
-        #     contour_transformed.append(transformed_point[:2])  # Keep only (x, y)
-
-        # # Convert the transformed points back to an array
-        # contour_transformed = numpy.array(contour_transformed, dtype=numpy.int32)
-
-        # # Create a binary mask where the largest contour is filled in
-        # mask = numpy.zeros_like(image, dtype=numpy.uint8)  # Create a blank mask
-        # cv2.fillPoly(mask, [contour_transformed], (255))  # Fill the largest contour in the mask
-
-        # # Create a blank canvas for the output image
-        # output_image = numpy.zeros((300, 300, 3), dtype=numpy.uint8)
-
-        # # Draw the original contour in blue
-        # cv2.polylines(output_image, [contour], isClosed=True, color=(255, 0, 0), thickness=2)
-
-        # # Draw the transformed contour in green
-        # cv2.polylines(output_image, [contour_transformed], isClosed=True, color=(0, 255, 0), thickness=2)
-
-        mask_transform = cv2.warpPerspective(self.mask, numpy.linalg.inv(self.homography), (projection.shape[1], projection.shape[0])) # Set this variable
-
-        # Extract the region inside the contour from the source image using the mask
-        contour_region = cv2.bitwise_and(projection, projection, mask=mask_transform)
-
-        # # Use the inverse mask to keep the background of the target image
-        # background = cv2.bitwise_and(contour_region, contour_region, mask=inverse_mask)
-
-        # # Overlay the contour region onto the target image
-        # result = cv2.add(background, contour_region)
-
-        # cv2.imshow("Output", contour_region)
-        return contour_region
-
-        # # cv2.imshow("Mask", mask_transform)
-
-        # # cv2.imshow("Image with Contours", contour_image)
-        # # # cv2.imshow("Image Flooded", flooded_image)
-
-        # # Wait for a key press and close the windows
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
-
-        # Find connected components (regions) in the closed edge image
-        # num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(contour_image)
-
-        # # Find the largest connected component based on the area (stats[:, cv2.CC_STAT_AREA] gives areas)
-        # largest_component_index = numpy.argmax(stats[1:, cv2.CC_STAT_AREA]) + 1  # Skip the background label
-
-        # # Create a mask for the largest connected component
-        # largest_component_mask = numpy.zeros_like(contour_image, dtype=numpy.uint8)
-        # largest_component_mask[labels == largest_component_index] = 255
-
-        # # Extract the region of interest (ROI) using the mask
-        # region_inside = cv2.bitwise_and(image, image, mask=largest_component_mask)
-
-        # # Display the results
-        # # cv2.imshow("Canny Edges", edges)  # Display the Canny edges
-        # # cv2.imshow("Morphologically Closed Edges", edges)  # Show the closed edges
-        # cv2.imshow("Largest Region Inside Edges", region_inside)  # Show the region inside the largest contour
-
-        # Wait for a key press and close the windows
+        # # Finally, return our fully-transformed, masked projection!
+        # return contour_region
 
     def test():
         image = cv2.imread("images/test.jpg", cv2.IMREAD_UNCHANGED)
         screen = get_monitors()[Consts.DISPLAY_INDEX]
-        # screenRatio = float(screen.width) / float(screen.height)
-        # dim = image.shape
-        # ratio = float(dim[0]) / float(dim[1])
-        # w = screen.width if ratio >= screenRatio else screen.height * ratio
-        # h = screen.height if ratio <= screenRatio else screen.width / ratio
 
         image = cv2.resize(image, (screen.width, screen.height))
 
@@ -308,9 +192,9 @@ class ContourDetector():
         cd.checkForChange(image)
         cd.checkForChange(image)
         cd.checkForChange(image)
+        cd.interpolateImage()
 
         # cv2.imshow("", cd.foregroundMask)
-        # cv2.imshow("2", cd.interpolateImage())
         cv2.imshow("Big Mask", cv2.bitwise_and(cd.foregroundMask, cd.backgroundMask))
         cv2.waitKey(0)
         cv2.destroyAllWindows()

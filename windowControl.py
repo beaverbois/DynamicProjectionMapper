@@ -9,8 +9,6 @@ from PyQt5.QtCore import Qt, QRect
 from window import Window
 from consts import Consts
 
-modalSize = QRect(100, 100, 400, 200)
-
 class WindowControl(Window):
     def __init__(self):
         super().__init__(Consts.CONTROL_WINDOW_NAME)
@@ -115,7 +113,7 @@ class WindowControl(Window):
         print('Generate texture')
 
         self.w = GenerateTextureWindow()
-        self.w.setGeometry(modalSize)
+        # self.w.setGeometry(modalSize)
         self.w.show()
 
     def populateTextures(self):
@@ -127,6 +125,13 @@ class WindowControl(Window):
             print("Directory does not exist")
 
 class GenerateTextureWindow(QWidget):
+    def sendQuery(self):
+        print('Sending query to Dall-E')
+        print(self.input.text())
+
+        self.close()
+        self.deleteLater()
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Generate Texture")
@@ -135,25 +140,23 @@ class GenerateTextureWindow(QWidget):
         screenWidth, screenHeight = screenGeometry.width(), screenGeometry.height()
 
         text = QLabel('Enter a prompt to generate a texture using DALL-E 3:')
-        input = QLineEdit()
-        input.move(int(screenWidth/2), int(screenHeight/2))
-        input.resize(140,20)
+        self.input = QLineEdit()
+        self.input.move(int(screenWidth/2), int(screenHeight/2))
+        self.input.resize(140,20)
 
-        applyTextureButton = QPushButton("Apply Texture")
-        applyTextureButton.setStyleSheet("font-size: 14px; padding: 8px;")
-        applyTextureButton.clicked.connect(applyTexture)
+        generate = QPushButton("Generate")
+        generate.setStyleSheet("font-size: 14px; padding: 8px;")
+        generate.clicked.connect(self.sendQuery)
 
         vBox = QVBoxLayout()
-        vBox.addWidget(text)
-        vBox.addLayout(hBox)
+        vBox.addWidget(text, alignment=Qt.AlignBottom)
 
         hBox = QHBoxLayout()
-        hBox.addWidget(input)
-        hBox.addWidget(input)
-        
+        vBox.addLayout(hBox)
+        hBox.addWidget(self.input)
+        hBox.addWidget(generate)
 
         self.setLayout(vBox)
-
 
 def main():
     app = QtWidgets.QApplication(sys.argv)

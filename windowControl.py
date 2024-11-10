@@ -2,12 +2,12 @@ import cv2
 import sys
 import os
 from consts import Consts
-from PyQt5 import QtWidgets
+from PyQt5 import QtWidgets, QtGui
 from PyQt5.QtWidgets import QWidget, QApplication, QLabel, QVBoxLayout, QHBoxLayout, QPushButton, QComboBox, QLineEdit
-from PyQt5.QtGui import QPixmap, QImage
-from PyQt5.QtCore import Qt, QRect
+from PyQt5.QtCore import Qt
 from window import Window
 from consts import Consts
+from dalle import DallE
 
 class WindowControl(Window):
     def __init__(self):
@@ -112,7 +112,7 @@ class WindowControl(Window):
     def generateTexture(self):
         print('Generate texture')
 
-        self.w = GenerateTextureWindow()
+        self.w = GenerateTextureWindow(self.textureComboBox, self.populateTextures)
         # self.w.setGeometry(modalSize)
         self.w.show()
 
@@ -129,12 +129,28 @@ class GenerateTextureWindow(QWidget):
         print('Sending query to Dall-E')
         print(self.input.text())
 
+        self.loadingLabel = QtWidgets.QLabel(self)
+        self.loadingLabel.setFixedSize(100, 100)
+        
+        self.movie = QtGui.QMovie(Consts.LOADING_GIF)
+        self.loadingLabel.setMovie(self.movie)
+        self.movie.start()
+
+        self.vBox.addWidget(self.loadingLabel)
+
+        client = DallE()
+        fileName = client.generateImage(self.input.text())
+        self.populateTextures()
+        self.textureComboBox.setCurrentText(fileName)
+
         self.close()
         self.deleteLater()
 
-    def __init__(self):
+    def __init__(self, textureComboBox: QComboBox, populateTextures):
         super().__init__()
         self.setWindowTitle("Generate Texture")
+        self.textureComboBox = textureComboBox
+        self.populateTextures = populateTextures
 
         screenGeometry = QApplication.primaryScreen().availableGeometry()
         screenWidth, screenHeight = screenGeometry.width(), screenGeometry.height()
@@ -148,15 +164,15 @@ class GenerateTextureWindow(QWidget):
         generate.setStyleSheet("font-size: 14px; padding: 8px;")
         generate.clicked.connect(self.sendQuery)
 
-        vBox = QVBoxLayout()
-        vBox.addWidget(text, alignment=Qt.AlignBottom)
+        self.vBox = QVBoxLayout()
+        self.vBox.addWidget(text, alignment=Qt.AlignBottom)
 
         hBox = QHBoxLayout()
-        vBox.addLayout(hBox)
+        self.vBox.addLayout(hBox)
         hBox.addWidget(self.input)
         hBox.addWidget(generate)
 
-        self.setLayout(vBox)
+        self.setLayout(self.vBox)
 
 def main():
     app = QtWidgets.QApplication(sys.argv)

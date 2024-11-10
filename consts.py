@@ -11,3 +11,4 @@ class Consts:
     CAMERA_HEIGHT = 1080
     CALIBRATION_IMAGES = ['images/calib/1.png', 'images/calib/2.png', 'images/calib/3.png']
     TEXTURES_PATH = 'images/textures'
+    LOADING_GIF = 'images/loading.gif'

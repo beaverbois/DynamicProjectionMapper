@@ -183,17 +183,10 @@ def frameCreator(queue, cd, cam):
     print("frameCreator started")
     t0 = time.time()
     for i in range(200):
-<<<<<<< HEAD
-        frame = camera.getFrame()
-        cd.processFrame(frame)
-        image = cd.interpolateImage()
-        # image = cd.thresholdFrame(frame)
-=======
         frame, _ = cam.getFrame()
         # cd.processFrame(frame)
         # image = cd.interpolateImage()
         image = cd.thresholdFrame(frame)
->>>>>>> 16feadd070e66d3f2a29cc0fe1c287c08b1360bd
         queue.put(image)
 
         # images = ['images/pattern1.png', 'images/pattern2.png', 'images/pattern3.png']

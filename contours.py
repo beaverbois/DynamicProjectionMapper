@@ -6,6 +6,11 @@ from screeninfo import get_monitors
 from windows import ProjectorWindow, UserWindow
 from PyQt5 import QtWidgets
 
+import torch
+import torchvision
+from PIL import Image
+import matplotlib.pyplot as plt
+
 class ContourDetector():
     # Constants
     differenceThresh = 5
@@ -39,6 +44,11 @@ class ContourDetector():
 
         # Save homography matrix
         self.homography = homography
+
+        # self.model = torchvision.models.segmentation.deeplabv3_resnet101(pretrained=True)
+        # self.model.eval()
+
+        self.model = cv2.CascadeClassifier("images/calib/haarcascade_frontalface_default.xml")
 
     def processFrame(self, img):
         # Convert the image to HSV
@@ -111,21 +121,41 @@ class ContourDetector():
 
         self.backgroundMask = contour_image
 
+        # # Look for people
+        # trf = torchvision.transforms.Compose([torchvision.transforms.ToTensor(), torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+        # inp = trf(img).unsqueeze(0)
+        # out = self.model(inp)['out']
+        # mask = out.squeeze().argmax(0) == 15
+        # masked_image = numpy.array(img) * mask.numpy()[:,:,None]
+        # masked_image = Image.fromarray(masked_image.astype('uint8'), 'RGB')
+        # plt.imshow(masked_image)
+        # plt.axis('off')
+        # plt.show()
+
     def __updateMask(self, frame):
         # Get the foreground mask, update model
-        fg_mask = self.backgroundSubtractor.apply(frame)
+        # fg_mask = self.backgroundSubtractor.apply(frame)
 
-        # Morphology for noise cleaning
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-        fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_CLOSE, kernel)
-        fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, kernel)
+        # # Morphology for noise cleaning
+        # kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        # fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_CLOSE, kernel)
+        # fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, kernel)
 
-        # Invert mask: anything white is set to black, anything else is set to white
-        all = numpy.full_like(frame, (255, 255, 255), dtype=numpy.uint8)
-        fg_mask = cv2.bitwise_not(fg_mask, all)
+        # # Invert mask: anything white is set to black, anything else is set to white
+        # all = numpy.full_like(frame, (255, 255, 255), dtype=numpy.uint8)
+        # fg_mask = cv2.bitwise_not(fg_mask, all)
 
-        # Save in self.foregroundMask
-        self.foregroundMask = fg_mask
+        # # Save in self.foregroundMask
+        self.foregroundMask = numpy.full_like(frame, (255, 255, 255), dtype=numpy.uint8)
+        face_cor = self.model.detectMultiScale(frame)
+        if len(face_cor) != 0:
+            for face in face_cor:
+                tmp = numpy.full_like(frame, (255, 255, 255), dtype=numpy.uint8)
+                x, y, w, h = face
+                x2, y2 = x+w, y+h
+                tmp = cv2.rectangle(tmp, (x, y), (x2, y2), (0, 0, 0), cv2.FILLED)
+                self.foregroundMask = cv2.bitwise_and(tmp, self.foregroundMask)
+
 
     def checkForChange(self, frame: cv2.Mat):
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -134,7 +164,7 @@ class ContourDetector():
         self.numUpdates += 1
         if self.numUpdates >= self.updateFreq:
             self.numUpdates = 0
-            self.processFrame(frame)
+            # self.processFrame(frame)
             self.__updateMask(frame)
             return
         
@@ -176,6 +206,7 @@ class ContourDetector():
         print(image.shape)
 
         cd = ContourDetector(numpy.int32([[[0, 0]], [[0, 900]], [[1200, 900]], [[1200, 0]]]), None)
+        cd.processFrame(image)
         cd.processFrame(image)
         cd.checkForChange(image)
         cd.checkForChange(image)

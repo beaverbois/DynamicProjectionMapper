@@ -30,7 +30,7 @@ class ProjectorStream(QtWidgets.QMainWindow):
 class ProjectorWindow(QtWidgets.QMainWindow):
     def captureImage(self):
         cam = Camera()
-        frame = cam.read()
+        frame = cam.getFrame()
 
         # write to file
         cv2.imwrite(Consts.CALIBRATION_IMAGE_PATH, frame)

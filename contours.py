@@ -14,7 +14,7 @@ class ContourDetector():
     dilateXMod = 0.02
     dilateYMod = 0.01
 
-    differenceThresh = 20
+    differenceThresh = 10
     numChangedPix = 0.001
 
     numUpdates = 0
@@ -53,7 +53,7 @@ class ContourDetector():
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         if self.foregroundMask == None:
-            self.foregroundMask = numpy.zeros_like(img, dtype=numpy.uint8)
+            self.foregroundMask = numpy.full_like(img, (255, 255, 255), dtype=numpy.uint8)
             self.foregroundMask = cv2.cvtColor(self.foregroundMask, cv2.COLOR_BGR2GRAY)
 
         self.last = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -65,9 +65,10 @@ class ContourDetector():
         edges = cv2.Canny(blurred, threshold1=100, threshold2=200, apertureSize=3)
 
         # Dilate and erode
-        kernel = numpy.ones((1, 1), numpy.uint8)
-        edges = cv2.morphologyEx(edges, cv2.MORPH_ERODE, kernel, iterations=1)
-        edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, kernel, iterations=7)
+        k1 = numpy.ones((1, 1), numpy.uint8)
+        kernel = numpy.ones((3, 3), numpy.uint8)
+        edges = cv2.morphologyEx(edges, cv2.MORPH_ERODE, k1, iterations=1)
+        edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, kernel, iterations=5)
         
         edges = cv2.drawContours(edges, [self.dst], -1, (255, 255, 255), 10)
 
@@ -87,22 +88,22 @@ class ContourDetector():
             # Get the bounding box of each contour
             x, y, w, h = cv2.boundingRect(contour)
 
-            if w * h > int((self.xDist * self.yDist) / 2):
+            if w * h > int((self.xDist * self.yDist) / 1.5):
                 continue
 
             pts = contour.reshape((-1, 1, 2))
 
             # cv2.rectangle(edges, (x, y), (x + w, y + h), (255, 255, 255), 2)
-            # perimeter = cv2.arcLength(contour, True)
+            perimeter = cv2.arcLength(contour, True)
         
             # Set epsilon to 2% of the perimeter (you can adjust this for more/less simplification)
-            # epsilon = 0.05 * perimeter  # This controls the approximation accuracy
+            epsilon = 0.05 * perimeter  # This controls the approximation accuracy
         
             # Approximate the contour
-            # approx_polygon = cv2.approxPolyDP(contour, epsilon, True)
+            approx_polygon = cv2.approxPolyDP(contour, epsilon, True)
 
-            # edges = cv2.drawContours(edges, [approx_polygon], -1, (255, 255, 255), 10)
-            edges = cv2.polylines(edges, [pts], True, (255, 255, 255), 10)
+            edges = cv2.drawContours(edges, [approx_polygon], -1, (255, 255, 255), 10)
+            # edges = cv2.polylines(edges, [pts], True, (255, 255, 255), 10)
         
         # # edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, kernel, iterations=19)
         
@@ -148,7 +149,7 @@ class ContourDetector():
         # x, y, w, h = cv2.boundingRect(maxContour)
         
         # Draw image
-        cv2.drawContours(img, [maxContour], -1, (255, 255, 255), cv2.FILLED)
+        # cv2.drawContours(img, [maxContour], -1, (255, 255, 255), cv2.FILLED)
         # cv2.imshow("Contour", img)
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
@@ -176,7 +177,7 @@ class ContourDetector():
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         # Update on a set interval
         self.numUpdates += 1
-        if self.numUpdates >= 20:
+        if self.numUpdates >= self.updateFreq:
             self.numUpdates = 0
             self.processFrame(frame)
             self.__updateMask(frame)
@@ -186,11 +187,12 @@ class ContourDetector():
         # avrChange = numpy.mean(cv2.absdiff(self.last, gray))
         for row in range(len(gray)):
             for col in range(len(gray[0])):
-                if abs(gray[row][col] - self.last[row][col]) > self.differenceThresh: # + avrChange
+                if abs(int(gray[row][col]) - int(self.last[row][col])) > self.differenceThresh: # + avrChange
+                    # print("Found difference", abs(int(gray[row][col]) - int(self.last[row][col])), gray[row][col], self.last[row][col])
                     numChanged += 1
                     if numChanged > self.numChangedPix:
                         self.__updateMask(frame)
-                        break
+                        return
 
     def interpolateImage(self):
         # Koala
@@ -236,7 +238,7 @@ class ContourDetector():
         # # Draw the transformed contour in green
         # cv2.polylines(output_image, [contour_transformed], isClosed=True, color=(0, 255, 0), thickness=2)
 
-        mask_transform = cv2.warpPerspective(self.mask, numpy.linalg.inv(homography), (projection.shape[1], projection.shape[0])) # Set this variable
+        mask_transform = cv2.warpPerspective(self.mask, numpy.linalg.inv(self.homography), (projection.shape[1], projection.shape[0])) # Set this variable
 
         # Extract the region inside the contour from the source image using the mask
         contour_region = cv2.bitwise_and(projection, projection, mask=mask_transform)
@@ -292,11 +294,12 @@ class ContourDetector():
 
         print(image.shape)
 
-        cd = ContourDetector(numpy.int32([[[0, 0]], [[0, 900]], [[2000, 900]], [[2000, 0]]]), None)
+        cd = ContourDetector(numpy.int32([[[0, 0]], [[0, 900]], [[1200, 900]], [[1200, 0]]]), None)
         cd.processFrame(image)
-        cd.__updateMask(image)
+        cd.checkForChange(image)
 
-        cv2.imshow("", cd.foregroundMask)
+        # cv2.imshow("", cd.foregroundMask)
+        cv2.imshow("2", cd.interpolateImage())
         cv2.imshow("Big Mask", cv2.bitwise_and(cd.foregroundMask, cd.backgroundMask))
         cv2.waitKey(0)
         cv2.destroyAllWindows()

@@ -9,6 +9,7 @@ from windows import ProjectorStream, ProjectorWindow, UserWindow
 from camera import Camera
 import multiprocessing as mp
 from queue import Empty
+import os
 
 import time
 from progressbar import progressbar
@@ -18,10 +19,25 @@ refImages = ['images/pattern1.png', 'images/pattern2.png', 'images/pattern3.png'
 cd = None
 homography = None
 
+def projectCalibration(refImg):
+    # create Qt app and window
+    app = QtWidgets.QApplication(sys.argv)
+    window = ProjectorWindow(refImg)
+    window.show()
+
+    # Run Qt, exits after picture taken
+    sys.exit(app.exec_())
+
+
 def calibrate(imgIndex: int):
     global cd
     global homography
     try:
+        
+        if os.path.exists(Consts.CALIBRATION_IMAGE_PATH):
+            os.remove(Consts.CALIBRATION_IMAGE_PATH)
+        if os.path.exists(Consts.HOMOGRAPHY_IMAGE_PATH):
+            os.remove(Consts.HOMOGRAPHY_IMAGE_PATH)
         # Open image
         refImg = cv2.imread(refImages[imgIndex], cv2.IMREAD_GRAYSCALE)
 
@@ -37,16 +53,11 @@ def calibrate(imgIndex: int):
 
         # by using Flann Matcher
         flann = cv2.FlannBasedMatcher(indexParams, searchParams)
+        
+        p = mp.Process(target=projectCalibration, args=(refImg, ))
+        p.start()
+        p.join()
 
-        # create Qt app and window
-        app = QtWidgets.QApplication(sys.argv)
-        window = ProjectorWindow(refImg)
-        window.show()
-
-        # Run Qt, exits after picture taken
-        app.exec_()
-
-        time.sleep(1)
 
         # read image taken by Qt app
         frame = cv2.imread(Consts.CALIBRATION_IMAGE_PATH)
@@ -164,7 +175,7 @@ def videoPlayer(queue):
 def frameCreator(queue, cd):
     camera = Camera()
     print("frameCreator started")
-    for i in range(30):
+    for i in range(1):
         frame = camera.getFrame()
         print("image taken")
         cd.processFrame(frame)
@@ -177,7 +188,7 @@ def frameCreator(queue, cd):
         # image_path = images[i%3]
         # image = cv2.imread(image_path)
         # queue.put(image)
-        # time.sleep(0.1)
+        time.sleep(0.5)
     queue.close()
     print("frameCreator Done!")
 

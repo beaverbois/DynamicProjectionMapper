@@ -3,6 +3,7 @@ import cv2
 from PyQt5 import QtWidgets, QtGui, QtCore
 from consts import Consts
 from camera import Camera
+import sys
 
 class ProjectorStream(QtWidgets.QMainWindow):
     def __init__(self, queue, monitorIndex = Consts.PROJECTOR_INDEX):
@@ -20,7 +21,7 @@ class ProjectorStream(QtWidgets.QMainWindow):
 
         timer = QtCore.QTimer(self)
         timer.timeout.connect(self.display_frame)
-        timer.start()
+        timer.start(1000//60)
 
     def display_frame(self):
 
@@ -82,10 +83,7 @@ class ProjectorWindow(QtWidgets.QMainWindow):
         self.setGeometry(geometry)
         self.showFullScreen()
 
-        # capture image right away using a timer
-        self.timer = QtCore.QTimer(self)
-        self.timer.timeout.connect(self.captureImage)
-        self.timer.start()
+        QtCore.QTimer.singleShot(500, self.captureImage)
 
 
 class UserWindow(QtWidgets.QMainWindow):
@@ -112,3 +110,14 @@ class UserWindow(QtWidgets.QMainWindow):
 
         # display pixmap in label
         self.label.setPixmap(pixmap)
+
+if __name__ == "__main__":
+    app = QtWidgets.QApplication(sys.argv)
+    refImg = cv2.imread('images/pattern1.png', cv2.IMREAD_GRAYSCALE)
+    window = ProjectorWindow(refImg)
+    window.show()
+
+    # Run Qt, exits after picture taken
+    sys.exit(app.exec_())
+
+

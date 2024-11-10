@@ -31,15 +31,15 @@ class ContourDetector():
 
         # self.model = cv2.CascadeClassifier("images/calib/haarcascade_frontalface_default.xml")
 
-        image = cv2.imread("images/textures/taco.jpg")
-        self.updateProjection(image)
+        image = cv2.imread("images/textures/jellyfish.jpg")
+        self.updateProjection(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
 
     # Call every frame
     def maskImage(self, depth: numpy.array):
         # Mask all objects that are closer than a threshold
         depth = depth[:-2]
         depth[depth == float('inf')] = 0
-        depth[depth > 2000] = 0
+        depth[depth > 2250] = 0
         depth[depth < 10] = 0
         gray = cv2.cvtColor(self.project, cv2.COLOR_BGR2GRAY)
         wall = numpy.bitwise_and(depth.astype(numpy.uint16), depth.astype(numpy.uint16), self.backgroundMask)
@@ -51,11 +51,10 @@ class ContourDetector():
         #wallThresh = numpy.mean(threshArr) * self.threshScale # Not sure if this is 100% right
         #, wallMask = cv2.threshold(wallTransform, wallThresh, 255, cv2.THRESH_BINARY) # Might want to use wall here
 
-        maskedImage = cv2.bitwise_and(self.project, self.project, mask=threshArr.astype(numpy.uint8))
+        kernel = numpy.ones((9, 9), numpy.uint8)
+        threshArr = cv2.morphologyEx(threshArr, cv2.MORPH_DILATE, kernel, 7)
 
-        kernel = numpy.ones((3, 3), numpy.uint8)
-        maskedImage = cv2.morphologyEx(maskedImage, cv2.MORPH_DILATE, kernel, 1)
-        # maskedImage = cv2.GaussianBlur(maskedImage, (3, 3), 0)
+        maskedImage = cv2.bitwise_and(self.project, self.project, mask=threshArr.astype(numpy.uint8))
 
         return maskedImage
 

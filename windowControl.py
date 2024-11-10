@@ -27,8 +27,8 @@ class WindowControl(Window):
         screen_geometry = QApplication.primaryScreen().availableGeometry()
         screen_width, screen_height = screen_geometry.width(), screen_geometry.height()
 
-        self.image_width = int(screen_width * 0.4)
-        self.image_height = int(screen_height * 0.4)
+        self.image_width = int(screen_width * 0.5)
+        self.image_height = int(screen_height * 0.5)
 
         centralWidget = QtWidgets.QWidget(self)
         self.setCentralWidget(centralWidget)

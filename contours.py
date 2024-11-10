@@ -145,7 +145,7 @@ class ContourDetector():
 
     def interpolateImage(self):
         # Koala
-        projection = cv2.imread("images/pattern1.png")
+        projection = cv2.imread(Consts.CALIBRATION_IMAGES[3])
         
         # Assemble the full mask. Known background is in white on backgroundMask, known foreground is in black on foregroundMask
         mask = cv2.bitwise_and(self.backgroundMask, self.foregroundMask)

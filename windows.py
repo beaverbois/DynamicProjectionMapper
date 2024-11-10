@@ -1,31 +1,49 @@
+from queue import Empty
 import cv2
 from PyQt5 import QtWidgets, QtGui, QtCore
 from consts import Consts
 from camera import Camera
+import sys
 
 class ProjectorStream(QtWidgets.QMainWindow):
-    def __init__(self, image, monitorIndex = Consts.PROJECTOR_INDEX):
+    def __init__(self, queue, monitorIndex = Consts.PROJECTOR_INDEX):
         super().__init__()
-       # label to hold the image
-        self.label = QtWidgets.QLabel(self)
-        self.setCentralWidget(self.label)
-        
-        # convert OpenCV image to QImage for PyQt
-        height, width, channel = image.shape
-        bytesPerLine = channel * width
-        q_image = QtGui.QImage(image.data, width, height, bytesPerLine, QtGui.QImage.Format_RGB888)
-        
-        # display QImage in the label
-        pixmap = QtGui.QPixmap.fromImage(q_image)
-        self.label.setPixmap(pixmap)
-        
-        # get screen geometry
+
+        self.setWindowTitle("Projector Stream")
         screen = QtWidgets.QApplication.screens()[monitorIndex]
         geometry = screen.geometry()
-        
-        # move and resize the window to fit
         self.setGeometry(geometry)
         self.showFullScreen()
+        self.queue = queue
+
+        self.label = QtWidgets.QLabel(self)
+        self.setCentralWidget(self.label)
+
+        timer = QtCore.QTimer(self)
+        timer.timeout.connect(self.display_frame)
+        timer.start(1000//60)
+
+    def display_frame(self):
+
+        try:
+            image = self.queue.get(True, 10)
+               
+            # convert OpenCV image to QImage for PyQt
+            height, width, channel = image.shape
+            bytesPerLine = channel * width
+            q_image = QtGui.QImage(image.data, width, height, bytesPerLine, QtGui.QImage.Format_RGB888)
+            
+            # display QImage in the label
+            pixmap = QtGui.QPixmap.fromImage(q_image)
+            self.label.setPixmap(pixmap)
+            self.update()
+
+            self.queue.task_done()
+
+        except Empty:
+            print("timed out.. exiting")
+            self.close()
+
 
 class ProjectorWindow(QtWidgets.QMainWindow):
     def captureImage(self):
@@ -37,6 +55,7 @@ class ProjectorWindow(QtWidgets.QMainWindow):
 
         # close app
         self.close()
+        print("dead")
 
     def __init__(self, image, monitorIndex = Consts.PROJECTOR_INDEX):
         super().__init__()
@@ -62,10 +81,7 @@ class ProjectorWindow(QtWidgets.QMainWindow):
         self.setGeometry(geometry)
         self.showFullScreen()
 
-        # capture image right away using a timer
-        self.timer = QtCore.QTimer(self)
-        self.timer.timeout.connect(self.captureImage)
-        self.timer.start()
+        QtCore.QTimer.singleShot(500, self.captureImage)
 
 
 class UserWindow(QtWidgets.QMainWindow):
@@ -92,3 +108,14 @@ class UserWindow(QtWidgets.QMainWindow):
 
         # display pixmap in label
         self.label.setPixmap(pixmap)
+
+if __name__ == "__main__":
+    app = QtWidgets.QApplication(sys.argv)
+    refImg = cv2.imread('images/pattern1.png', cv2.IMREAD_GRAYSCALE)
+    window = ProjectorWindow(refImg)
+    window.show()
+
+    # Run Qt, exits after picture taken
+    sys.exit(app.exec_())
+
+

@@ -2,11 +2,12 @@ import cv2
 from consts import Consts
 import pyfreenect2
 import signal
+import numpy as np
 
 class Camera:
     def __init__(self):
         # create camera
-        self.cam = cv2.VideoCapture(Consts.CAMERA_INDEX)
+        # self.cam = cv2.VideoCapture(Consts.CAMERA_INDEX)
 
         # set resolution
         self.cam.set(cv2.CAP_PROP_FRAME_WIDTH, Consts.CAMERA_WIDTH)
@@ -67,7 +68,8 @@ class Kinect:
         (undistorted, registered, big) = self.registration.apply(rgbFrame=rgbFrame, depthFrame=depthFrame)
 
         depth_frame = big.getDepthData()
-        rgb_frame = rgbFrame.getRGBData()
+        rgb_frame = np.array(rgbFrame.getRGBData()[:, :, :3], dtype=np.uint16)
+        rgb_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR)
 
         self.frameListener.release(frames)
 
@@ -78,4 +80,3 @@ if __name__ == "__main__":
     kinect = Kinect()
     for i in range(1000):
         kinect.getFrame()
-        

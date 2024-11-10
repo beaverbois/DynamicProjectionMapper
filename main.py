@@ -7,7 +7,7 @@ from consts import Consts
 from PyQt5 import QtWidgets
 from stream import ProjectorStream
 from windowProjector import ProjectorWindow
-from camera import Camera
+from camera import Camera, Kinect
 import multiprocessing as mp
 from queue import Empty
 import os
@@ -32,11 +32,6 @@ def calibrate(imgIndex: int):
     global cd
     global homography
     try:
-        
-        if os.path.exists(Consts.CALIBRATION_IMAGE_PATH):
-            os.remove(Consts.CALIBRATION_IMAGE_PATH)
-        if os.path.exists(Consts.HOMOGRAPHY_IMAGE_PATH):
-            os.remove(Consts.HOMOGRAPHY_IMAGE_PATH)
         # Open image
         refImg = cv2.imread(Consts.CALIBRATION_IMAGES[imgIndex], cv2.IMREAD_GRAYSCALE)
 
@@ -53,7 +48,7 @@ def calibrate(imgIndex: int):
         # by using Flann Matcher
         flann = cv2.FlannBasedMatcher(indexParams, searchParams)
         
-        p = mp.Process(target=projectCalibration, args=(refImg, ))
+        p = mp.Process(target=projectCalibration, args=(refImg,))
         p.start()
         p.join()
 
@@ -101,23 +96,34 @@ def calibrate(imgIndex: int):
         # saving all points in pts 
         pts = np.float32([[0, 0], [0, h], [w, h], [w, 0]]).reshape(-1, 1, 2) 
 
+        print(pts)
+
         # applying perspective algorithm 
         dst = cv2.perspectiveTransform(pts, homography)
+        print(np.int32(dst))
 
-        cam = Camera()
-        frame = cam.getFrame()
+        # cam = Camera()
+        # time.sleep(10)
+        # cam = Kinect()
+        # time.sleep(10)
+        # frame, _ = cam.getFrame()
+        # print(frame.shape)
+        n_frame = cv2.imread(Consts.CALIBRATION_IMAGE_PATH)
+        print(n_frame.shape)
 
         # using drawing function for the frame 
-        homographyImg = cv2.polylines(frame, [np.int32(dst)], True, (255, 0, 0), 3) 
+        homographyImg = cv2.polylines(n_frame, [np.int32(dst)], True, (255, 0, 0), 3) 
+
+        cv2.imshow("Homo", homographyImg)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
         # write homography image
         cv2.imwrite(Consts.HOMOGRAPHY_IMAGE_PATH, homographyImg)
-
-
         
         # identify countours
-        cd = ContourDetector(np.int32(dst), homography)
-        cd.processFrame(frame)
+        # cd = ContourDetector(np.int32(dst), homography)
+        # cd.processFrame(frame)
         # cd.interpolateImage()
 
         # # ---- BENCHMARK ----
@@ -133,7 +139,6 @@ def calibrate(imgIndex: int):
         # # ---- BENCHMARK ----
 
         return cd
-
 
         # app = QtWidgets.QApplication(sys.argv)
 
@@ -173,15 +178,15 @@ def videoPlayer(queue):
     app.exec_()
     print("Player started")
 
-def frameCreator(queue, cd):
-    camera = Camera()
+def frameCreator(queue, cd, cam):
+    # camera = Camera()
     print("frameCreator started")
     t0 = time.time()
     for i in range(200):
-        frame = camera.getFrame()
+        frame, _ = cam.getFrame()
         # cd.processFrame(frame)
         # image = cd.interpolateImage()
-        image = cd.thresholdFrame(image)
+        image = cd.thresholdFrame(frame)
         queue.put(image)
 
         # images = ['images/pattern1.png', 'images/pattern2.png', 'images/pattern3.png']
@@ -198,6 +203,7 @@ def frameCreator(queue, cd):
 def main():
     assert len(get_monitors()) > 1 # throws if no projector connected
     cd = calibrate(0)
+    cam = Kinect()
 
     print("calibrate done!")
     queue = mp.JoinableQueue(5)
@@ -205,7 +211,7 @@ def main():
     player = mp.Process(target=videoPlayer, args=(queue,))
     player.start()
 
-    frameCreator(queue, cd)
+    frameCreator(queue, cd, cam)
 
     player.join()
     print("joined?")

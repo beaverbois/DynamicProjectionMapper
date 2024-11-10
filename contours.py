@@ -58,7 +58,7 @@ class ContourDetector():
             self.foregroundMask = numpy.zeros_like(img, dtype=numpy.uint8)
             self.foregroundMask = cv2.cvtColor(self.foregroundMask, cv2.COLOR_BGR2GRAY)
 
-        self.last = gray
+        self.last = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
         # Apply GaussianBlur to reduce noise and improve edge detection
         blurred = cv2.GaussianBlur(gray, (3, 3), 0)
@@ -175,8 +175,7 @@ class ContourDetector():
         self.foregroundMask = fg_mask
 
     def checkForChange(self, frame):
-        # Update fg_mask
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         # Update on a set interval
         self.numUpdates += 1
         if self.numUpdates >= 20:
@@ -186,10 +185,10 @@ class ContourDetector():
             return
         # Check for enough change to redo the mask
         numChanged = 0
-        # avrChange = numpy.mean(cv2.absdiff(self.last, frame))
-        for row in range(len(frame)):
-            for col in range(len(frame[0])):
-                if abs(frame[row][col][0] - self.last[row][col][0]) > self.differenceThresh + avrChange:
+        # avrChange = numpy.mean(cv2.absdiff(self.last, gray))
+        for row in range(len(gray)):
+            for col in range(len(gray[0])):
+                if abs(gray[row][col] - self.last[row][col]) > self.differenceThresh: # + avrChange
                     numChanged += 1
                     if numChanged > self.numChangedPix:
                         self.__updateMask(frame)

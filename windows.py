@@ -1,6 +1,7 @@
+import cv2
 from PyQt5 import QtWidgets, QtGui, QtCore
 from consts import Consts
-import cv2
+from camera import Camera
 
 class ProjectorStream(QtWidgets.QMainWindow):
     def __init__(self, image, monitorIndex = Consts.PROJECTOR_INDEX):
@@ -28,15 +29,8 @@ class ProjectorStream(QtWidgets.QMainWindow):
 
 class ProjectorWindow(QtWidgets.QMainWindow):
     def captureImage(self):
-        # initializing web cam  
-        cam = cv2.VideoCapture(0)
-
-        # set resolution
-        cam.set(cv2.CAP_PROP_FRAME_WIDTH, Consts.CAMERA_WIDTH)
-        cam.set(cv2.CAP_PROP_FRAME_HEIGHT, Consts.CAMERA_HEIGHT)
-
-        # take a picture
-        _, frame = cam.read()
+        cam = Camera()
+        frame = cam.read()
 
         # write to file
         cv2.imwrite(Consts.CALIBRATION_IMAGE_PATH, frame)

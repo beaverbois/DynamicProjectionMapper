@@ -6,6 +6,7 @@ from screeninfo import get_monitors
 from consts import Consts
 from PyQt5 import QtWidgets
 from windows import ProjectorStream, ProjectorWindow, UserWindow
+from camera import Camera
 
 import time
 from progressbar import progressbar
@@ -89,14 +90,8 @@ def calibrate(imgIndex: int):
         # applying perspective algorithm 
         dst = cv2.perspectiveTransform(pts, homography)
 
-        cam = cv2.VideoCapture(0)
-
-        # set resolution
-        cam.set(cv2.CAP_PROP_FRAME_WIDTH, Consts.CAMERA_WIDTH)
-        cam.set(cv2.CAP_PROP_FRAME_HEIGHT, Consts.CAMERA_HEIGHT)
-
-        # take a picture
-        _, frame = cam.read()
+        cam = Camera()
+        frame = cam.getFrame()
 
         # using drawing function for the frame 
         homographyImg = cv2.polylines(frame, [np.int32(dst)], True, (255, 0, 0), 3) 
@@ -142,7 +137,7 @@ def calibrate(imgIndex: int):
     	cv2.destroyAllWindows()
 
 def main():
-    assert len(get_monitors()) > 1 # throws if no webcam connected
+    assert len(get_monitors()) > 1 # throws if no projector connected
     calibrate(0)
     
 if __name__ == '__main__':

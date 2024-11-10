@@ -10,6 +10,6 @@ class Camera:
         self.cam.set(cv2.CAP_PROP_FRAME_WIDTH, Consts.CAMERA_WIDTH)
         self.cam.set(cv2.CAP_PROP_FRAME_HEIGHT, Consts.CAMERA_HEIGHT)
 
-    def getFrame():
+    def getFrame(self):
         _, frame = self.cam.read()
         return frame

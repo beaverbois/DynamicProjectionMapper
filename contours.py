@@ -42,7 +42,6 @@ class ContourDetector():
         self.numChangedPix *= self.xDist * self.yDist
 
     def processFrame(self, img):
-
         # Convert the image to grayscale
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 

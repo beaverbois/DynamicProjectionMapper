@@ -7,6 +7,8 @@ from consts import Consts
 from PyQt5 import QtWidgets
 from windows import ProjectorStream, ProjectorWindow, UserWindow
 from camera import Camera
+import multiprocessing as mp
+from queue import Empty
 
 import time
 from progressbar import progressbar
@@ -136,9 +138,45 @@ def calibrate(imgIndex: int):
     finally:
     	cv2.destroyAllWindows()
 
+def videoPlayer(queue):
+    # while True:
+    #     try:
+    #         queue.get(True, 2)
+    #         # print("recieved!")
+    #         queue.task_done()
+    #     except Empty:
+    #         print("timed out.. exiting")
+    #         return
+
+    app = QtWidgets.QApplication(sys.argv)
+    window = ProjectorStream(queue, 0)
+    window.show()
+    app.exec_()
+
+def frameCreator(queue):
+    for i in range(15):
+        images = ['images/pattern1.png', 'images/pattern2.png', 'images/pattern3.png']
+        # for i in range(120):
+        image_path = images[i%3]
+        image = cv2.imread(image_path)
+        queue.put(image)
+        # time.sleep(0.1)
+    queue.close()
+    print("Done!")
+
+
 def main():
-    assert len(get_monitors()) > 1 # throws if no projector connected
-    calibrate(0)
+    # assert len(get_monitors()) > 1 # throws if no projector connected
+    # calibrate(0)
+
+    queue = mp.JoinableQueue(5)
+    player = mp.Process(target=videoPlayer, args=(queue,))
+    creator = mp.Process(target=frameCreator, args=(queue,))
+    player.start()
+    creator.start()
+    creator.join()
+    player.join()
+    queue.join()
     
 if __name__ == '__main__':
     main()

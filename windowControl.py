@@ -4,17 +4,24 @@ import os
 from consts import Consts
 from PyQt5 import QtWidgets, QtGui
 from PyQt5.QtWidgets import QWidget, QApplication, QLabel, QVBoxLayout, QHBoxLayout, QPushButton, QComboBox, QLineEdit
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
 from window import Window
 from consts import Consts
 from dalle import DallE
 
 class WindowControl(Window):
-    def __init__(self, queue1, queue2):
+    def __init__(self, queue1, queue2, messages):
         super().__init__(Consts.CONTROL_WINDOW_NAME)
         self.queue1 = queue1
         self.queue2 = queue2
+        self.messages = messages
         self.createUI()
+
+        timer = QTimer(self)
+        timer.timeout.connect(self.display_frame1)
+        timer.timeout.connect(self.display_frame2)
+        timer.start(10)
+        
 
     def createUI(self):
         screen_geometry = QApplication.primaryScreen().availableGeometry()
@@ -34,14 +41,14 @@ class WindowControl(Window):
         self.image1.setAlignment(Qt.AlignCenter)
         self.setImage1(cv2.imread(Consts.CALIBRATION_IMAGE_PATH))
 
-        self.image1Text = QLabel("Composite")
+        self.image1Text = QLabel("Video Preview")
         self.image1Text.setAlignment(Qt.AlignCenter)
 
         self.image2 = QLabel(self)
         self.image2.setAlignment(Qt.AlignCenter)
         self.setImage2(cv2.imread(Consts.HOMOGRAPHY_IMAGE_PATH))
 
-        self.image2Text = QLabel("Homography")
+        self.image2Text = QLabel("Sensor Feed")
         self.image2Text.setAlignment(Qt.AlignCenter)
 
         imageBox = QHBoxLayout()
@@ -87,42 +94,18 @@ class WindowControl(Window):
         genTextureButton.clicked.connect(self.generateTexture)
         textureBox.addWidget(genTextureButton)
 
-        calibrateButton = QPushButton("Calibrate Homography")
-        calibrateButton.setStyleSheet("font-size: 14px; padding: 8px;")
-        calibrateButton.clicked.connect(self.calibrateHomography)
-        buttonsBox.addWidget(calibrateButton)
+        # calibrateButton = QPushButton("Calibrate Homography")
+        # calibrateButton.setStyleSheet("font-size: 14px; padding: 8px;")
+        # calibrateButton.clicked.connect(self.calibrateHomography)
+        # buttonsBox.addWidget(calibrateButton)
 
     def display_frame1(self):
-
         image = self.queue1.get()
-            
-        # convert OpenCV image to QImage for PyQt
-        height, width, channel = image.shape
-        bytesPerLine = channel * width
-        q_image = QtGui.QImage(image.data, width, height, bytesPerLine, QtGui.QImage.Format_RGB888)
-        
-        # display QImage in the label
-        pixmap = QtGui.QPixmap.fromImage(q_image)
-        self.label.setPixmap(pixmap)
-        self.update()
-
-        self.queue.task_done()
+        self.setImage1(image)
     
     def display_frame2(self):
         image = self.queue2.get()
-            
-        # convert OpenCV image to QImage for PyQt
-        height, width, channel = image.shape
-        bytesPerLine = channel * width
-        q_image = QtGui.QImage(image.data, width, height, bytesPerLine, QtGui.QImage.Format_RGB888)
-        
-        # display QImage in the label
-        pixmap = QtGui.QPixmap.fromImage(q_image)
-        self.label.setPixmap(pixmap)
-        self.update()
-
-        self.queue.task_done()
-
+        self.setImage2(image)
 
     def setImage1(self, img):
         scaled_pixmap = self.imgToPixmap(img).scaled(self.image_width, self.image_height, Qt.KeepAspectRatio, Qt.SmoothTransformation)
@@ -132,21 +115,14 @@ class WindowControl(Window):
         scaled_pixmap = self.imgToPixmap(img).scaled(self.image_width, self.image_height, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self.image2.setPixmap(scaled_pixmap)
 
-    def calibrateHomography(self):
-        print('Calibrating homography')
-        # TODO:
-
-    def applyTexture(self):
-        path = self.textureComboBox.currentText()
-        print(path)
-        # TODO:
-
     def generateTexture(self):
         print('Generate texture')
 
-        self.w = GenerateTextureWindow(self.textureComboBox, self.populateTextures)
-        # self.w.setGeometry(modalSize)
+        self.w = GenerateTextureWindow(self.textureComboBox, self.populateTextures, self.messages)
         self.w.show()
+
+    def applyTexture(self):
+        self.messages.put(self.textureComboBox.currentText())
 
     def populateTextures(self):
         self.textureComboBox.clear()
@@ -169,20 +145,25 @@ class GenerateTextureWindow(QWidget):
         self.movie.start()
 
         self.vBox.addWidget(self.loadingLabel)
+        QApplication.processEvents() # manual UI refresh
 
         client = DallE()
         fileName = client.generateImage(self.input.text())
         self.populateTextures()
         self.textureComboBox.setCurrentText(fileName)
 
+        self.messages.put(fileName)
+        # pass filename
+        # call this V
         self.close()
         self.deleteLater()
 
-    def __init__(self, textureComboBox: QComboBox, populateTextures):
+    def __init__(self, textureComboBox: QComboBox, populateTextures, messages):
         super().__init__()
         self.setWindowTitle("Generate Texture")
         self.textureComboBox = textureComboBox
         self.populateTextures = populateTextures
+        self.messages = messages
 
         screenGeometry = QApplication.primaryScreen().availableGeometry()
         screenWidth, screenHeight = screenGeometry.width(), screenGeometry.height()

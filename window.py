@@ -8,6 +8,7 @@ class Window(QtWidgets.QMainWindow):
         super().__init__()
         self.monitor = get_monitors()[Consts.DISPLAY_INDEX]
         self.setWindowTitle(title)
+        
 
     def imgToPixmap(self, img):
         # Convert OpenCV BGR to QImage RGB

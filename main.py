@@ -178,11 +178,15 @@ def videoPlayer(queue):
     app.exec_()
     print("Player started")
 
-def frameCreator(queue, cd, cam, q1, q2):
+def frameCreator(queue, cd, cam, q1, q2, messages):
     # camera = Camera()
     print("frameCreator started")
     t0 = time.time()
-    for i in range(20000):
+    while True:
+        if not messages.empty():
+            fileName = messages.get()
+            cd.updateProjection(cv2.imread(fileName))
+
         frame, depth = cam.getFrame()
         q2.put(frame)
         # cd.processFrame(frame)
@@ -201,18 +205,20 @@ def frameCreator(queue, cd, cam, q1, q2):
     queue.close()
     print("frameCreator Done!")
 
-def uiProcess(q1, q2):
+def uiProcess(q1, q2, messages):
     app = QtWidgets.QApplication(sys.argv)
-    ui = WindowControl(q1, q2)
+    ui = WindowControl(q1, q2, messages)
     ui.show()
     sys.exit(app.exec_())
-
 
 def main():
     assert len(get_monitors()) > 1 # throws if no projector connected
 
     q1, q2 = mp.Queue(), mp.Queue()
-    uiprocess = mp.Process(target=uiProcess, args=(q1,q2))
+
+    messages = mp.Queue()
+
+    uiprocess = mp.Process(target=uiProcess, args=(q1,q2, messages))
     uiprocess.start()
 
     cd = calibrate(2)
@@ -224,7 +230,7 @@ def main():
     player = mp.Process(target=videoPlayer, args=(queue,))
     player.start()
 
-    frameCreator(queue, cd, cam, q1, q2)
+    frameCreator(queue, cd, cam, q1, q2, messages)
 
     player.join()
     print("joined?")

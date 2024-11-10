@@ -14,7 +14,10 @@ class ContourDetector():
     dilateXMod = 0.02
     dilateYMod = 0.01
 
-    def __init__(self, img, dst):
+    differenceThresh = 20
+    numChangedPix = 0.001
+
+    def __init__(self, dst):
         # Get values from dst
 
         # print(dst)
@@ -32,11 +35,18 @@ class ContourDetector():
             dstMinY = min(dstMinY, dst[i][0][1])
             dstMaxY = max(dstMaxY, dst[i][0][1])
 
-        xDist = dstMaxX - dstMinX
-        yDist = dstMaxY - dstMinY
+        self.xDist = dstMaxX - dstMinX
+        self.yDist = dstMaxY - dstMinY
+        self.dst = dst
+
+        self.numChangedPix *= self.xDist * self.yDist
+
+    def processFrame(self, img):
 
         # Convert the image to grayscale
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+        self.last = gray
 
         # Apply GaussianBlur to reduce noise and improve edge detection
         blurred = cv2.GaussianBlur(gray, (3, 3), 0)
@@ -47,7 +57,7 @@ class ContourDetector():
         # Dilate and erode
         edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, (9, 9), iterations=9)
         
-        edges = cv2.drawContours(edges, [dst], -1, (255, 255, 255), 10)
+        edges = cv2.drawContours(edges, [self.dst], -1, (255, 255, 255), 10)
 
         # Show the original and edge-detected images
         # cv2.imshow('Original Image', img)
@@ -65,7 +75,7 @@ class ContourDetector():
             # Get the bounding box of each contour
             x, y, w, h = cv2.boundingRect(contour)
 
-            if w * h > int((xDist * yDist) / 2):
+            if w * h > int((self.xDist * self.yDist) / 2):
                 continue
 
             # pts = contour.reshape((-1, 1, 2))
@@ -84,7 +94,7 @@ class ContourDetector():
         
         edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, (9, 9), iterations=19)
         
-        edges = cv2.drawContours(edges, [dst], -1, (255, 255, 255), 10)
+        edges = cv2.drawContours(edges, [self.dst], -1, (255, 255, 255), 10)
 
         # cv2.drawContours(contour_image, contours, -1, (255, 255, 255), 2)
         # cv2.imshow("Round 1", edges)
@@ -101,7 +111,7 @@ class ContourDetector():
             # Get the bounding box of each contour
             x, y, w, h = cv2.boundingRect(contour)
 
-            if w*h > maxSize and w*h < xDist * yDist:
+            if w*h > maxSize and w*h < self.xDist * self.yDist:
                 maxSize = w*h
                 maxContour = contour
 
@@ -136,7 +146,18 @@ class ContourDetector():
         # self.mask = cv2.cvtColor(contour_image, cv2.COLOR_BGR2GRAY)
         self.mask = contour_image
 
-    def scaleImage(self, homography):
+    def checkForChange(self, frame):
+        numChanged = 0
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        avrChange = numpy.mean(cv2.absdiff(self.last, frame))
+        for row in range(len(frame)):
+            for col in range(len(row)):
+                if abs(frame[row][col][0] - self.last[row][col][0]) > self.differenceThresh + avrChange:
+                    numChanged += 1
+        if numChanged > self.numChangedPix:
+            self.processFrame(frame)
+
+    def interpolateImage(self, homography):
         # Koala
         projection = cv2.imread("images/pattern1.png")
         

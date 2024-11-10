@@ -12,7 +12,12 @@ from progressbar import progressbar
 
 refImages = ['images/pattern1.png', 'images/pattern2.png', 'images/pattern3.png']
 
+cd = None
+homography = None
+
 def calibrate(imgIndex: int):
+    global cd
+    global homography
     try:
         # Open image
         refImg = cv2.imread(refImages[imgIndex], cv2.IMREAD_GRAYSCALE)
@@ -103,20 +108,20 @@ def calibrate(imgIndex: int):
         # t0 = time.time()
         # for i in progressbar(range(1000)):
         #     cd = ContourDetector(frame, np.int32(dst))
-        #     cd.scaleImage(homography)
+        #     cd.interpolateImage(homography)
         # t1 = time.time()
 
         # print(f"time: {t1-t0}s | fps: {1000/(t1-t0)}")
         # # ---- BENCHMARK ----
         
         # identify countours
-        cd = ContourDetector(frame, np.int32(dst))
-       
-        # cd.scaleImage(homography)
+        cd = ContourDetector(np.int32(dst))
+        cd.processFrame(frame)
+        cd.interpolateImage(homography)
 
 
         # app = QtWidgets.QApplication(sys.argv)
-        window = ProjectorStream(cd.scaleImage(homography))
+        window = ProjectorStream(cd.interpolateImage(homography))
         window.show()
 
         # run Qt, exits after picture taken

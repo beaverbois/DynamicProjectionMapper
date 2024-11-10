@@ -117,8 +117,6 @@ def calibrate(imgIndex: int):
         # identify countours
         cd = ContourDetector(np.int32(dst))
         cd.processFrame(frame)
-        cd.interpolateImage(homography)
-
 
         # app = QtWidgets.QApplication(sys.argv)
         window = ProjectorStream(cd.interpolateImage(homography))

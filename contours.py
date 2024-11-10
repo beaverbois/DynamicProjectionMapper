@@ -14,7 +14,7 @@ class ContourDetector():
     # # Counter for tracking number of times a new frame is sent in
     # numUpdates = 0
 
-    threshScale = 0.95
+    threshScale = 0.90
 
     def __init__(self, dst, homography):
         # Get values from dst
@@ -54,11 +54,31 @@ class ContourDetector():
     def maskImage(self, depth):
         # Mask all objects that are closer than a threshold
         gray = cv2.cvtColor(self.project, cv2.COLOR_BGR2GRAY)
+        # for i in range(len(depth)):
+        #     for j in range(len(depth[0])):
+        #         print("Depth", i, j, depth[i][j])
+        # cv2.imshow("De", depth.astype(numpy.uint16))
+        # for i in range(len(depth)):
+        #     for j in range(len(depth[0])):
+        #         print("Depth", i, j, depth[i][j])
+                
+        print("depth info", numpy.mean(depth.astype(numpy.uint16)), depth.astype(numpy.uint16)[0][0])
         depthTransform = cv2.warpPerspective(depth.astype(numpy.uint16), numpy.linalg.inv(self.homography), (gray.shape[1], gray.shape[0])) # Might(?) need a different shape
+        
+        cv2.imshow("DT", depthTransform)
         wall = numpy.bitwise_and(depthTransform, depthTransform, self.backgroundMask) # Need to ensure types work
-        wallThresh = numpy.mean(wall[wall > 0.1]) * self.threshScale # Not sure if this is 100% right
+        cv2.imshow("Wall", wall)
+        
+        wall = wall[wall > 0.1]
+        wall = wall[wall < numpy.inf]
+        wallThresh = float(numpy.mean(wall)) * self.threshScale # Not sure if this is 100% right
+        # cv2.imshow("WT", wallThresh)
         _, wallMask = cv2.threshold(depthTransform, wallThresh, 255, cv2.THRESH_BINARY) # Might want to use wall here
+        # cv2.imshow("WM", wallMask)
         maskedImage = cv2.bitwise_and(self.project, self.project, mask=wallMask.astype(numpy.uint8))
+        # cv2.imshow("MI", maskedImage)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
         return maskedImage
 
     def updateProjection(self, image):
@@ -127,7 +147,7 @@ class ContourDetector():
         edges = cv2.drawContours(edges, [self.dst], -1, (255, 255, 255), 5)
         edges = cv2.rectangle(edges, (0, 0), (edges.shape[1], edges.shape[0]), (255, 255, 255), 5)
 
-        cv2.imshow("Edges", edges)
+        # cv2.imshow("Edges", edges)
 
         # Find contours from edges
         contours, hierarchy = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -174,9 +194,9 @@ class ContourDetector():
         contour_image = numpy.zeros_like(edges, dtype=numpy.uint8)
         cv2.drawContours(contour_image, [maxContour], -1, (255, 255, 255), cv2.FILLED)
 
-        cv2.imshow("c", contour_image)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        # cv2.imshow("c", contour_image)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
 
         self.backgroundMask = contour_image
 

@@ -149,7 +149,8 @@ class ContourDetector():
                 tmp = numpy.full_like(frame, 255, dtype=numpy.uint8)
                 x, y, w, h = face
                 x2, y2 = x+w, y+h
-                tmp = cv2.rectangle(tmp, (x, y), (x2, y2), 0, cv2.FILLED)
+                # tmp = cv2.rectangle(tmp, (x, y), (x2, y2), 0, cv2.FILLED)
+                tmp = cv2.ellipse(tmp, (x+w/2, y+h/2), (w/2,h/2), 0, 0, 0, color=0, thickness=cv2.FILLED)
                 self.foregroundMask = cv2.bitwise_and(tmp, self.foregroundMask)
 
         self.last = frame
@@ -199,8 +200,6 @@ class ContourDetector():
         screen = get_monitors()[Consts.DISPLAY_INDEX]
 
         image = cv2.resize(image, (screen.width, screen.height))
-
-        print(image.shape)
 
         cd = ContourDetector(numpy.int32([[[0, 0]], [[0, 900]], [[1200, 900]], [[1200, 0]]]), None)
         cd.processFrame(image)

@@ -44,6 +44,19 @@ class ContourDetector():
 
         self.model = cv2.CascadeClassifier("images/calib/haarcascade_frontalface_default.xml")
 
+        self.project = cv2.cvtColor(cv2.imread(Consts.CALIBRATION_IMAGES[0]), cv2.COLOR_BGR2GRAY)
+
+    def thresholdFrame(self, img):
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        proj = cv2.drawContours(gray, [self.dst], -1, 255, thickness=cv2.FILLED)
+        tmp = numpy.full_like(gray, 255, dtype=numpy.uint8)
+        mask = cv2.bitwise_not(tmp, proj)
+        gray[mask==255] = mask[mask==255]
+        transform = cv2.warpPerspective(gray, numpy.linalg.inv(self.homography), (self.project.shape[1], self.project.shape[0]))
+        diff = numpy.abs(cv2.subtract(transform.astype(numpy.int16), self.project.astype(numpy.int16)))
+        _, thresh = cv2.threshold(diff, self.differenceThresh, 255, cv2.THRESH_BINARY_INV)
+        return cv2.bitwise_and(self.project, self.project, thresh)
+
     def processFrame(self, img):
         # Convert the image to HSV
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)

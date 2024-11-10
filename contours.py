@@ -18,20 +18,20 @@ class ContourDetector():
 
     def __init__(self, dst, homography):
         # Get values from dst
-        # self.dstMinX = dst[0][0][0]
-        # self.dstMinY = dst[0][0][1]
-        # self.dstMaxX = dst[0][0][0]
-        # self.dstMaxY = dst[0][0][1]
+        self.dstMinX = dst[0][0][0]
+        self.dstMinY = dst[0][0][1]
+        self.dstMaxX = dst[0][0][0]
+        self.dstMaxY = dst[0][0][1]
 
-        # for i in range(len(dst)):
-        #     self.dstMinX = min(self.dstMinX, dst[i][0][0])
-        #     self.dstMaxX = max(self.dstMaxX, dst[i][0][0])
-        #     self.dstMinY = min(self.dstMinY, dst[i][0][1])
-        #     self.dstMaxY = max(self.dstMaxY, dst[i][0][1])
+        for i in range(len(dst)):
+            self.dstMinX = min(self.dstMinX, dst[i][0][0])
+            self.dstMaxX = max(self.dstMaxX, dst[i][0][0])
+            self.dstMinY = min(self.dstMinY, dst[i][0][1])
+            self.dstMaxY = max(self.dstMaxY, dst[i][0][1])
 
-        # self.xDist = self.dstMaxX - self.dstMinX
-        # self.yDist = self.dstMaxY - self.dstMinY
-        # self.dst = dst
+        self.xDist = self.dstMaxX - self.dstMinX
+        self.yDist = self.dstMaxY - self.dstMinY
+        self.dst = dst
 
         # # Initialize foreground mask to set after calibration
         # self.foregroundMask = []
@@ -54,12 +54,11 @@ class ContourDetector():
     def maskImage(self, depth):
         # Mask all objects that are closer than a threshold
         gray = cv2.cvtColor(self.project, cv2.COLOR_BGR2GRAY)
-        depthTransform = cv2.warpPerspective(depth, numpy.linalg.inv(self.homography), (gray.shape[1], gray.shape[0])) # Might(?) need a different shape
-        wall = numpy.bitwise_and(depthTransform, depthTransform, cv2.cvtColor(self.backgroundMask, cv2.COLOR_BGR2GRAY)) # Need to ensure types work
+        depthTransform = cv2.warpPerspective(depth.astype(numpy.uint16), numpy.linalg.inv(self.homography), (gray.shape[1], gray.shape[0])) # Might(?) need a different shape
+        wall = numpy.bitwise_and(depthTransform, depthTransform, self.backgroundMask) # Need to ensure types work
         wallThresh = numpy.mean(wall[wall > 0.1]) * self.threshScale # Not sure if this is 100% right
         _, wallMask = cv2.threshold(depthTransform, wallThresh, 255, cv2.THRESH_BINARY) # Might want to use wall here
-
-        maskedImage = cv2.bitwise_and(self.project, self.project, mask=wallMask)
+        maskedImage = cv2.bitwise_and(self.project, self.project, mask=wallMask.astype(numpy.uint8))
         return maskedImage
 
     def updateProjection(self, image):
@@ -128,7 +127,7 @@ class ContourDetector():
         edges = cv2.drawContours(edges, [self.dst], -1, (255, 255, 255), 5)
         edges = cv2.rectangle(edges, (0, 0), (edges.shape[1], edges.shape[0]), (255, 255, 255), 5)
 
-        # cv2.imshow("Edges", edges)
+        cv2.imshow("Edges", edges)
 
         # Find contours from edges
         contours, hierarchy = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -175,9 +174,9 @@ class ContourDetector():
         contour_image = numpy.zeros_like(edges, dtype=numpy.uint8)
         cv2.drawContours(contour_image, [maxContour], -1, (255, 255, 255), cv2.FILLED)
 
-        # cv2.imshow("c", contour_image)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
+        cv2.imshow("c", contour_image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
         self.backgroundMask = contour_image
 

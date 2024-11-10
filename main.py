@@ -114,17 +114,16 @@ def calibrate(imgIndex: int):
         # using drawing function for the frame 
         homographyImg = cv2.polylines(n_frame, [np.int32(dst)], True, (255, 0, 0), 3) 
 
-        cv2.imshow("Homo", homographyImg)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        # cv2.imshow("Homo", homographyImg)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
 
         # write homography image
         cv2.imwrite(Consts.HOMOGRAPHY_IMAGE_PATH, homographyImg)
         
         # identify countours
-        # cd = ContourDetector(np.int32(dst), homography)
-        # cd.processFrame(frame)
-        # cd.interpolateImage()
+        cd = ContourDetector(np.int32(dst), homography)
+        cd.processFrame(frame)
 
         # # ---- BENCHMARK ----
         # camera = Camera()
@@ -183,10 +182,10 @@ def frameCreator(queue, cd, cam):
     print("frameCreator started")
     t0 = time.time()
     for i in range(200):
-        frame, _ = cam.getFrame()
+        frame, depth = cam.getFrame()
         # cd.processFrame(frame)
         # image = cd.interpolateImage()
-        image = cd.thresholdFrame(frame)
+        image = cd.maskImage(depth)
         queue.put(image)
 
         # images = ['images/pattern1.png', 'images/pattern2.png', 'images/pattern3.png']

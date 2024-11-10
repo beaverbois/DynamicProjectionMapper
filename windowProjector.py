@@ -34,7 +34,7 @@ class ProjectorWindow(Window):
         self.setGeometry(geometry)
         self.showFullScreen()
 
-        time.sleep(2)
+        # time.sleep(2)
         rgb_frame, _ = self.cam.getFrame()
         cv2.imwrite(Consts.BLANK_IMAGE_PATH, cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR))
         self.label.setPixmap(self.imgToPixmap(img))

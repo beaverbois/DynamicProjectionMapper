@@ -147,6 +147,7 @@ def calibrate(imgIndex: int):
     except Exception as e:
         print(e)
         cv2.destroyAllWindows()
+        exit()
 
         calibrate((imgIndex + 1) % len(Consts.CALIBRATION_IMAGES)) # Try the next reference image in a circular array
 
@@ -173,20 +174,20 @@ def videoPlayer(queue):
 def frameCreator(queue, cd):
     camera = Camera()
     print("frameCreator started")
-    for i in range(1):
+    t0 = time.time()
+    for i in range(1000):
         frame = camera.getFrame()
-        print("image taken")
         cd.processFrame(frame)
         image = cd.interpolateImage()
         queue.put(image)
 
-        print("---- frame inserted")
         # images = ['images/pattern1.png', 'images/pattern2.png', 'images/pattern3.png']
         # # for i in range(120):
         # image_path = images[i%3]
         # image = cv2.imread(image_path)
         # queue.put(image)
-        time.sleep(0.5)
+    t1 = time.time()
+    print(f"fps: {1000/(t1-t0)}")
     queue.close()
     print("frameCreator Done!")
 

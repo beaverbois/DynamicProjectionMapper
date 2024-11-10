@@ -178,7 +178,7 @@ def frameCreator(queue, cd):
     t0 = time.time()
     for i in range(1000):
         frame = camera.getFrame()
-        cd.processFrame(frame)
+        cd.checkForChange(frame)
         image = cd.interpolateImage()
         queue.put(image)
 

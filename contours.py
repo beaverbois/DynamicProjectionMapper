@@ -3,13 +3,7 @@ import numpy
 from consts import Consts
 from screeninfo import get_monitors
 
-from windows import ProjectorWindow, UserWindow
 from PyQt5 import QtWidgets
-
-import torch
-import torchvision
-from PIL import Image
-import matplotlib.pyplot as plt
 
 class ContourDetector():
     # Constants
@@ -178,7 +172,7 @@ class ContourDetector():
         projection = cv2.imread(Consts.CALIBRATION_IMAGES[0])
         
         # Assemble the full mask. Known background is in white on backgroundMask, known foreground is in black on foregroundMask
-        mask = cv2.bitwise_and(self.backgroundMask, self.foregroundMask)
+        mask = cv2.bitwise_and(self.backgroundMask, cv2.cvtColor(self.foregroundMask, cv2.COLOR_BGR2GRAY))
 
         # Use the homography matrix to map each part of the mask to the equivalent part on the projection
         mask_transform = cv2.warpPerspective(mask, numpy.linalg.inv(self.homography), (projection.shape[1], projection.shape[0]))

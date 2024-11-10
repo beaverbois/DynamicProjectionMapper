@@ -27,6 +27,7 @@ class ProjectorStream(QtWidgets.QMainWindow):
 
         try:
             image = self.queue.get(True, 1)
+            print("frame!")
                
             # convert OpenCV image to QImage for PyQt
             height, width, channel = image.shape

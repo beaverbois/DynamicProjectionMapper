@@ -20,11 +20,13 @@ class ContourDetector():
     numUpdates = 0
     updateFreq = 20
 
-    def __init__(self, dst):
+    def __init__(self, dst, homography):
         # Get values from dst
 
         # print(dst)
         # dst = numpy.array(dst)
+
+        self.homography = homography
 
         self.dstMinX = dst[0][0][0]
         self.dstMinY = dst[0][0][1]
@@ -106,9 +108,9 @@ class ContourDetector():
         edges = cv2.rectangle(edges, (0, 0), (edges.shape[0], edges.shape[1]), (255, 255, 255), 5)
 
         # cv2.drawContours(contour_image, contours, -1, (255, 255, 255), 2)
-        cv2.imshow("Round 1", edges)
-        cv2.waitKey(0)  
-        cv2.destroyAllWindows()
+        # cv2.imshow("Round 1", edges)
+        # cv2.waitKey(0)  
+        # cv2.destroyAllWindows()
 
         contours, hierarchy = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -176,16 +178,16 @@ class ContourDetector():
             return
         # Check for enough change to redo the mask
         numChanged = 0
-        avrChange = numpy.mean(cv2.absdiff(self.last, frame))
+        # avrChange = numpy.mean(cv2.absdiff(self.last, frame))
         for row in range(len(frame)):
             for col in range(len(row)):
-                if abs(frame[row][col][0] - self.last[row][col][0]) > self.differenceThresh + avrChange:
+                if abs(frame[row][col][0] - self.last[row][col][0]) > self.differenceThresh:
                     numChanged += 1
                     if numChanged > self.numChangedPix:
                         self.updateMask(frame)
                         break
 
-    def interpolateImage(self, homography):
+    def interpolateImage(self):
         # Koala
         projection = cv2.imread("images/pattern1.png")
         print(self.backgroundMask.shape)
@@ -231,7 +233,7 @@ class ContourDetector():
         # # Draw the transformed contour in green
         # cv2.polylines(output_image, [contour_transformed], isClosed=True, color=(0, 255, 0), thickness=2)
 
-        mask_transform = cv2.warpPerspective(self.mask, numpy.linalg.inv(homography), (projection.shape[1], projection.shape[0])) # Set this variable
+        mask_transform = cv2.warpPerspective(self.mask, numpy.linalg.inv(self.homography), (projection.shape[1], projection.shape[0])) # Set this variable
 
         # Extract the region inside the contour from the source image using the mask
         contour_region = cv2.bitwise_and(projection, projection, mask=mask_transform)

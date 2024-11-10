@@ -112,15 +112,15 @@ def calibrate(imgIndex: int):
         # # ---- BENCHMARK ----
         
         # identify countours
-        cd = ContourDetector(np.int32(dst))
+        cd = ContourDetector(np.int32(dst), homography)
         cd.processFrame(frame)
 
+        return cd
+
+
         # app = QtWidgets.QApplication(sys.argv)
-        window = ProjectorStream(cd.interpolateImage(homography))
-        window.show()
 
         # run Qt, exits after picture taken
-        app.exec_()
         
         # # app = QtWidgets.QApplication(sys.argv)
         # window = UserWindow(homographyImg)
@@ -147,35 +147,43 @@ def videoPlayer(queue):
     #     except Empty:
     #         print("timed out.. exiting")
     #         return
+    print("Player?")
 
     app = QtWidgets.QApplication(sys.argv)
-    window = ProjectorStream(queue, 0)
+    window = ProjectorStream(queue)
     window.show()
     app.exec_()
+    print("Player started")
 
-def frameCreator(queue):
-    for i in range(15):
-        images = ['images/pattern1.png', 'images/pattern2.png', 'images/pattern3.png']
-        # for i in range(120):
-        image_path = images[i%3]
-        image = cv2.imread(image_path)
+def frameCreator(queue, cd):
+    camera = Camera()
+    print("frameCreator started")
+    for i in range(1000):
+        cd.checkForChange(camera.getFrame())
+        image = cd.interpolateImage()
         queue.put(image)
+        # images = ['images/pattern1.png', 'images/pattern2.png', 'images/pattern3.png']
+        # # for i in range(120):
+        # image_path = images[i%3]
+        # image = cv2.imread(image_path)
+        # queue.put(image)
         # time.sleep(0.1)
     queue.close()
     print("Done!")
 
 
 def main():
-    # assert len(get_monitors()) > 1 # throws if no projector connected
-    # calibrate(0)
+    assert len(get_monitors()) > 1 # throws if no projector connected
+    cd = calibrate(0)
 
+    print("calibrate done!")
     queue = mp.JoinableQueue(5)
+
+    frameCreator(queue, cd)
     player = mp.Process(target=videoPlayer, args=(queue,))
-    creator = mp.Process(target=frameCreator, args=(queue,))
     player.start()
-    creator.start()
-    creator.join()
     player.join()
+    print("joined?")
     queue.join()
     
 if __name__ == '__main__':

@@ -26,10 +26,10 @@ class ContourDetector():
         # print(dst)
         # dst = numpy.array(dst)
 
-        dstMinX = dst[0][0][0]
-        dstMinY = dst[0][0][1]
-        dstMaxX = dst[0][0][0]
-        dstMaxY = dst[0][0][1]
+        self.dstMinX = dst[0][0][0]
+        self.dstMinY = dst[0][0][1]
+        self.dstMaxX = dst[0][0][0]
+        self.dstMaxY = dst[0][0][1]
 
 
         for i in range(len(dst)):
@@ -48,11 +48,12 @@ class ContourDetector():
         self.backgroundSubtractor = cv2.createBackgroundSubtractorMOG2(detectShadows=True)
 
     def processFrame(self, img):
-        # Convert the image to grayscale
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-
         if self.foregroundMask == None:
             self.foregroundMask = numpy.zeros_like(img, dtype=numpy.uint8)
+            self.foregroundMask = cv2.cvtColor(self.foregroundMask, cv2.COLOR_BGR2GRAY)
+        # Convert the image to grayscale
+
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         self.last = gray
 
@@ -61,7 +62,6 @@ class ContourDetector():
 
         # Perform Canny edge detection
         edges = cv2.Canny(blurred, threshold1=50, threshold2=200, apertureSize=3)
-
 
         # Dilate and erode
         edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, (9, 9), iterations=9)
@@ -120,7 +120,7 @@ class ContourDetector():
             # Get the bounding box of each contour
             x, y, w, h = cv2.boundingRect(contour)
 
-            if w*h > maxSize and w*h < self.xDist * self.yDist:
+            if w*h > maxSize and w*h < self.xDist * self.yDist and x > self.dstMinX and x+w < self.dstMaxX and y > self.dstMinY and y+h < self.dstMaxY:
                 maxSize = w*h
                 maxContour = contour
 

@@ -1,23 +1,16 @@
 import cv2
 import numpy
-import dalle
 from consts import Consts
 from screeninfo import get_monitors
 
 from PyQt5 import QtWidgets
 
 class ContourDetector():
-    # # Constants
-    # differenceThresh = 50
-    # updateFreq = 20
-
-    # # Counter for tracking number of times a new frame is sent in
-    # numUpdates = 0
-
+    # Scalar to account for slight differences in distance at a wall
     threshScale = 0.95
 
     def __init__(self, dst, homography):
-        # Get values from dst
+        # Get values from dst for use in processFrame
         self.dstMinX = dst[0][0][0]
         self.dstMinY = dst[0][0][1]
         self.dstMaxX = dst[0][0][0]
@@ -33,17 +26,8 @@ class ContourDetector():
         self.yDist = self.dstMaxY - self.dstMinY
         self.dst = dst
 
-        # # Initialize foreground mask to set after calibration
-        # self.foregroundMask = []
-
-        # # Initialize foreground identifier
-        # self.backgroundSubtractor = cv2.createBackgroundSubtractorMOG2(detectShadows=True)
-
         # Save homography matrix
         self.homography = homography
-
-        # self.model = torchvision.models.segmentation.deeplabv3_resnet101(pretrained=True)
-        # self.model.eval()
 
         # self.model = cv2.CascadeClassifier("images/calib/haarcascade_frontalface_default.xml")
 
@@ -77,21 +61,20 @@ class ContourDetector():
 
     def updateProjection(self, image):
         # Get the dimensions of the original image
-        img_height, img_width, _ = image.shape
+        h, w, _ = image.shape
 
-        # Calculate how many tiles are needed in each dimension
-        horizontal_tiles = (1920 // img_width) + 1  # +1 to ensure full coverage
-        vertical_tiles = (1080 // img_height) + 1  # +1 to ensure full coverage
+        # Determine how many tiles to fill each dimension
+        numHorizontal = (1920 // w) + 1  # +1 to ensure full coverage
+        numVertical = (1080 // h) + 1  # +1 to ensure full coverage
 
-        # Create a larger image by repeating the original image
-        # Tile the image horizontally and vertically
-        tiled_image = numpy.tile(image, (vertical_tiles, horizontal_tiles, 1))
-        tiled_image = cv2.resize(tiled_image, (1920, 1080))
+        # Create a larger, repeating-pattern image using numpy.tile
+        tiledImg = numpy.tile(image, (numVertical, numVertical, 1))
+        tiledImg = cv2.resize(tiledImg, (1920, 1080))
 
         # Crop the image to the exact target size
-        tiled_image = tiled_image[:1080, :1920]
+        tiledImg = tiledImg[:1080, :1920]
 
-        self.project = tiled_image
+        self.project = tiledImg
 
     # def thresholdFrame(self, img):
     #     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -106,29 +89,11 @@ class ContourDetector():
 
     # Use for calibration
     def processFrame(self, img):
-        # Convert the image to HSV
+        # Convert the image to HSV for processing
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
-        # if len(self.foregroundMask) == 0:
-        #     self.foregroundMask = numpy.full_like(img, (255, 255, 255), dtype=numpy.uint8)
-        #     self.foregroundMask = cv2.cvtColor(self.foregroundMask, cv2.COLOR_BGR2GRAY)
-
-        # Find the distance between the expected projection and what we see
-        # else:
-        #     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        #     proj = cv2.drawContours(gray, [self.dst], -1, 255, thickness=cv2.FILLED)
-        #     tmp = numpy.full_like(gray, 255, dtype=numpy.uint8)
-        #     mask = cv2.bitwise_not(tmp, proj)
-        #     gray[mask==255] = mask[mask==255]
-        #     transform = cv2.warpPerspective(gray, numpy.linalg.inv(self.homography), (self.last.shape[1], self.last.shape[0]))
-        #     avr = numpy.mean(numpy.abs(cv2.subtract(transform.astype(numpy.int16), self.last.astype(numpy.int16))))
-        #     if avr < self.differenceThresh:
-        #         return
-
-        # Apply GaussianBlur to reduce noise and improve edge detection
+        # Blur and Canny
         blurred = cv2.GaussianBlur(hsv, (3, 3), 0)
-
-        # Perform Canny edge detection
         edges = cv2.Canny(blurred, threshold1=50, threshold2=200, apertureSize=3)
 
         # Dilate and erode
@@ -137,13 +102,11 @@ class ContourDetector():
         edges = cv2.morphologyEx(edges, cv2.MORPH_ERODE, k1, iterations=1)
         edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, kernel, iterations=3)
         
-        # Draw in known bounds for contour identification: screen and edge of image
+        # Draw in known bounds for contour identification: screen and image edges
         edges = cv2.drawContours(edges, [self.dst], -1, (255, 255, 255), 5)
         edges = cv2.rectangle(edges, (0, 0), (edges.shape[1], edges.shape[0]), (255, 255, 255), 5)
 
-        # cv2.imshow("Edges", edges)
-
-        # Find contours from edges
+        # Find contours
         contours, hierarchy = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         # Feed the contours found back into edges to close gaps in edge detection
@@ -164,10 +127,6 @@ class ContourDetector():
             # # Poly lines approach
             # pts = contour.reshape((-1, 1, 2))
             # edges = cv2.polylines(edges, [pts], True, (255, 255, 255), 10)
-        
-        # edges = cv2.drawContours(edges, [self.dst], -1, (255, 255, 255), 10
-
-        # cv2.imshow("Contours", edges)
 
         # Find contours a second time, using other bounding boxes to help close gaps and increase accuracy
         contours, hierarchy = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -188,14 +147,10 @@ class ContourDetector():
         contour_image = numpy.zeros_like(edges, dtype=numpy.uint8)
         cv2.drawContours(contour_image, [maxContour], -1, (255, 255, 255), cv2.FILLED)
 
-        # cv2.imshow("c", contour_image)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
-
         self.backgroundMask = contour_image
         print(contour_image.shape)
 
-        # # Look for people
+        # # Look for people using an ML model
         # trf = torchvision.transforms.Compose([torchvision.transforms.ToTensor(), torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
         # inp = trf(img).unsqueeze(0)
         # out = self.model(inp)['out']
@@ -310,11 +265,6 @@ class ContourDetector():
         # cd.checkForChange(image)
         # cd.checkForChange(image)
         # cd.thresholdFrame(image)
-
-        # cv2.imshow("", cd.foregroundMask)
-        # cv2.imshow("Big Mask", cv2.bitwise_and(cd.foregroundMask, cd.backgroundMask))
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
 
 if __name__ == '__main__':
     ContourDetector.test()

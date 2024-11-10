@@ -17,6 +17,9 @@ class ContourDetector():
     differenceThresh = 20
     numChangedPix = 0.001
 
+    numUpdates = 0
+    updateFreq = 20
+
     def __init__(self, dst):
         # Get values from dst
 
@@ -41,9 +44,15 @@ class ContourDetector():
 
         self.numChangedPix *= self.xDist * self.yDist
 
+        self.foregroundMask = None
+        self.backgroundSubtractor = cv2.createBackgroundSubtractorMOG2(detectShadows=True)
+
     def processFrame(self, img):
         # Convert the image to grayscale
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+        if self.foregroundMask == None:
+            self.foregroundMask = numpy.zeros_like(img, dtype=numpy.uint8)
 
         self.last = gray
 
@@ -51,7 +60,8 @@ class ContourDetector():
         blurred = cv2.GaussianBlur(gray, (3, 3), 0)
 
         # Perform Canny edge detection
-        edges = cv2.Canny(blurred, threshold1=50, threshold2=200, apertureSize=3)
+        # edges = cv2.Canny(blurred, threshold1=50, threshold2=200, apertureSize=3)
+
 
         # Dilate and erode
         edges = cv2.morphologyEx(edges, cv2.MORPH_DILATE, (9, 9), iterations=9)
@@ -143,22 +153,43 @@ class ContourDetector():
         cv2.drawContours(contour_image, [maxContour], -1, (255, 255, 255), cv2.FILLED)
 
         # self.mask = cv2.cvtColor(contour_image, cv2.COLOR_BGR2GRAY)
-        self.mask = contour_image
+        self.backgroundMask = contour_image
+
+    def __updateMask(self, frame):
+        # Optional: Perform morphological operations to clean up the mask (remove noise)
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))  # Define a kernel for morphological operation
+        fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_CLOSE, kernel)  # Close small holes in the foreground mask
+        fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, kernel)   # Remove small noise
+
+        self.foregroundMask = fg_mask
 
     def checkForChange(self, frame):
-        numChanged = 0
+        # Update fg_mask
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        fg_mask = self.backgroundSubtractor.apply(frame)
+        # Update on a set interval
+        self.numUpdates += 1
+        if self.numUpdates >= 20:
+            self.numUpdates = 0
+            self.processFrame(frame)
+            self.__updateMask(frame)
+            return
+        # Check for enough change to redo the mask
+        numChanged = 0
         avrChange = numpy.mean(cv2.absdiff(self.last, frame))
         for row in range(len(frame)):
             for col in range(len(row)):
                 if abs(frame[row][col][0] - self.last[row][col][0]) > self.differenceThresh + avrChange:
                     numChanged += 1
-        if numChanged > self.numChangedPix:
-            self.processFrame(frame)
+                    if numChanged > self.numChangedPix:
+                        self.updateMask(frame)
+                        break
 
     def interpolateImage(self, homography):
         # Koala
         projection = cv2.imread("images/pattern1.png")
+
+        self.mask = cv2.bitwise_or(self.backgroundMask, self.foregroundMask)
         
         # mask = numpy.zeros_like(projection, dtype=numpy.uint8)  # Create a blank mask
         # cv2.fillPoly(mask, [contour], (255))  # Fill the largest contour in the mask

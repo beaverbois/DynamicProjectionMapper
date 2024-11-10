@@ -51,7 +51,6 @@ class ContourDetector():
         if len(self.foregroundMask) == 0:
             self.foregroundMask = numpy.full_like(img, (255, 255, 255), dtype=numpy.uint8)
             self.foregroundMask = cv2.cvtColor(self.foregroundMask, cv2.COLOR_BGR2GRAY)
-            self.last = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
         # Find the distance between the expected projection and what we see
         else:
@@ -125,8 +124,6 @@ class ContourDetector():
         cv2.drawContours(contour_image, [maxContour], -1, (255, 255, 255), cv2.FILLED)
 
         self.backgroundMask = contour_image
-        
-        self.last = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
         # # Look for people
         # trf = torchvision.transforms.Compose([torchvision.transforms.ToTensor(), torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
@@ -206,6 +203,8 @@ class ContourDetector():
 
         # Map the region of the projection we want to itself, leaving the rest as black
         contour_region = cv2.bitwise_and(projection, projection, mask=mask_transform)
+
+        self.last = contour_region
 
         # Finally, return our fully-transformed, masked projection!
         return contour_region

@@ -118,6 +118,7 @@ def calibrate(imgIndex: int):
         # identify countours
         cd = ContourDetector(np.int32(dst), homography)
         cd.processFrame(frame)
+        # cd.interpolateImage()
 
         # # ---- BENCHMARK ----
         # camera = Camera()
@@ -176,7 +177,7 @@ def frameCreator(queue, cd):
     camera = Camera()
     print("frameCreator started")
     t0 = time.time()
-    for i in range(1000):
+    for i in range(200):
         frame = camera.getFrame()
         # cd.processFrame(frame)
         # image = cd.interpolateImage()
